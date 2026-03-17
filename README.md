@@ -56,6 +56,16 @@ Este proyecto ha pasado por una fase de refactorización intensiva para alcanzar
 
 ---
 
+## 🛠️ Instalación y Uso
+
+Argos está diseñado para ser ejecutado con un solo comando:
+
+    Clona el repo: git clone https://github.com/TirsoTormo/argos-net-intelligence
+
+    Ejecuta como Admin: python argos.py (Argos se encargará de instalar todo por ti).
+
+---
+
 ## 🧠 Metodología (AI-Assisted)
 
 Este proyecto ha sido diseñado bajo una arquitectura de **Desarrollo Asistido por IA**, utilizando modelos de lenguaje avanzados para la optimización de lógica de red y diseño de UX en consola. Mi rol como desarrollador ha sido la arquitectura del sistema, supervisión técnica y validación de seguridad.
