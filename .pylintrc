@@ -1,0 +1,16 @@
+[MASTER]
+ignore=.agent,.skills,venv
+
+[MESSAGES CONTROL]
+# Desactivamos E0401 para evitar fallos si el entorno virtual de GitHub 
+# tiene problemas con Scapy o Rich.
+disable=
+    E0401, # Unable to import
+    C0301, # Line too long
+    C0415, # Import outside toplevel
+    W0718, # Broad exception caught
+    R0914, # Too many local variables
+    R0912, # Too many branches
+    R0915, # Too many statements
+    R0801, # Duplicate code
+    C0303  # Trailing whitespace
