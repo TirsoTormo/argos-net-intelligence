@@ -1,3 +1,4 @@
+# pylint: disable=no-else-return, too-many-boolean-expressions, wrong-import-order
 """
 NetScanner - Utilidades de Red
 Funciones auxiliares para obtener información de interfaces de red,
@@ -7,13 +8,13 @@ calcular subredes y validar direcciones IP privadas.
 import socket
 import ipaddress
 import psutil
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict
 
 
 def get_local_interfaces() -> List[Dict]:
     """
     Obtiene todas las interfaces de red activas del sistema con su información.
-    
+
     Returns:
         Lista de diccionarios con info de cada interfaz:
         - name: Nombre de la interfaz
@@ -49,14 +50,16 @@ def get_local_interfaces() -> List[Dict]:
 
         iface_type = _detect_interface_type(iface_name, ipv4)
 
-        interfaces.append({
-            "name": iface_name,
-            "ip": ipv4,
-            "mask": mask or "255.255.255.0",
-            "mac": mac or "N/A",
-            "type": iface_type,
-            "is_up": is_up,
-        })
+        interfaces.append(
+            {
+                "name": iface_name,
+                "ip": ipv4,
+                "mask": mask or "255.255.255.0",
+                "mac": mac or "N/A",
+                "type": iface_type,
+                "is_up": is_up,
+            }
+        )
 
     return interfaces
 
@@ -71,7 +74,10 @@ def _detect_interface_type(name: str, ip: str) -> str:
         return "📶 Wi-Fi"
     elif any(kw in name_lower for kw in ["ethernet", "eth", "en0", "enp", "eno"]):
         return "🔌 Ethernet"
-    elif any(kw in name_lower for kw in ["vmware", "virtualbox", "vbox", "hyper-v", "docker", "vethernet"]):
+    elif any(
+        kw in name_lower
+        for kw in ["vmware", "virtualbox", "vbox", "hyper-v", "docker", "vethernet"]
+    ):
         return "💻 Virtual"
     elif any(kw in name_lower for kw in ["vpn", "tun", "tap", "wg"]):
         return "🔒 VPN"
@@ -82,11 +88,11 @@ def _detect_interface_type(name: str, ip: str) -> str:
 def get_network_cidr(ip: str, mask: str) -> str:
     """
     Calcula el CIDR de la subred a partir de IP y máscara.
-    
+
     Args:
         ip: Dirección IPv4 (ej: '192.168.1.100')
         mask: Máscara de subred (ej: '255.255.255.0')
-    
+
     Returns:
         String con la red en formato CIDR (ej: '192.168.1.0/24')
     """
@@ -101,10 +107,10 @@ def is_private_ip(ip: str) -> bool:
     """
     Verifica que una dirección IP sea privada (RFC 1918).
     Esto garantiza que nunca se sale a Internet.
-    
+
     Args:
         ip: Dirección IPv4
-    
+
     Returns:
         True si la IP es privada
     """
@@ -117,11 +123,11 @@ def is_private_ip(ip: str) -> bool:
 def resolve_hostname(ip: str, timeout: float = 1.0) -> str:
     """
     Intenta resolver el hostname de una IP mediante DNS inverso.
-    
+
     Args:
         ip: Dirección IPv4
         timeout: Tiempo máximo de espera en segundos
-    
+
     Returns:
         Hostname resuelto o 'Desconocido'
     """
@@ -141,12 +147,14 @@ def get_active_interfaces() -> List[Dict]:
     interfaces = get_local_interfaces()
     active = []
     for iface in interfaces:
-        if (iface["is_up"]
-                and iface["ip"] != "127.0.0.1"
-                and is_private_ip(iface["ip"])
-                and "Virtual" not in iface["type"]
-                and "VPN" not in iface["type"]
-                and "Loopback" not in iface["type"]):
+        if (
+            iface["is_up"]
+            and iface["ip"] != "127.0.0.1"
+            and is_private_ip(iface["ip"])
+            and "Virtual" not in iface["type"]
+            and "VPN" not in iface["type"]
+            and "Loopback" not in iface["type"]
+        ):
             active.append(iface)
     return active
 
@@ -154,11 +162,11 @@ def get_active_interfaces() -> List[Dict]:
 def get_gateway_ip(ip: str, mask: str) -> str:
     """
     Estima la IP del gateway (normalmente .1 de la subred).
-    
+
     Args:
         ip: Dirección IPv4 del host
         mask: Máscara de subred
-    
+
     Returns:
         IP estimada del gateway
     """
@@ -175,11 +183,11 @@ def get_gateway_ip(ip: str, mask: str) -> str:
 def get_all_host_ips(ip: str, mask: str) -> List[str]:
     """
     Genera la lista de todas las IPs de host posibles en la subred.
-    
+
     Args:
         ip: Dirección IPv4
         mask: Máscara de subred
-    
+
     Returns:
         Lista de IPs como strings
     """

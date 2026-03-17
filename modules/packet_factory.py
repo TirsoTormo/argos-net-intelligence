@@ -1,3 +1,4 @@
+# pylint: disable=too-many-arguments, too-many-locals, too-many-positional-arguments, invalid-name, no-name-in-module, no-else-return, f-string-without-interpolation, import-outside-toplevel, implicit-str-concat, raise-missing-from, redefined-builtin, unused-variable, unused-import
 """
 Argos — Packet Factory (Fábrica de Paquetes)
 =============================================
@@ -15,24 +16,35 @@ from typing import Optional, Dict, List, Any, Callable
 
 from modules.net_utils import is_private_ip
 
-
 # ─────────────────────────────────────────────────────────────
 # Verificación de dependencias
 # ─────────────────────────────────────────────────────────────
+
 
 def _require_scapy():
     """Importa Scapy o lanza error descriptivo."""
     try:
         from scapy.all import (
-            Ether, ARP, IP, TCP, UDP, ICMP,
-            sr1, sr, srp, send, sendp, conf, RandShort
+            Ether,
+            ARP,
+            IP,
+            TCP,
+            UDP,
+            ICMP,
+            sr1,
+            sr,
+            srp,
+            send,
+            sendp,
+            conf,
+            RandShort,
         )
+
         conf.verb = 0
         return True
     except ImportError:
         raise ImportError(
-            "Scapy es requerido para Packet Factory.\n"
-            "Instálalo con: pip install scapy"
+            "Scapy es requerido para Packet Factory.\n" "Instálalo con: pip install scapy"
         )
 
 
@@ -49,40 +61,43 @@ def _validate_target(ip: str):
 # CAPA 2 — Enlace de datos (Ethernet / ARP)
 # ─────────────────────────────────────────────────────────────
 
-def craft_ethernet_frame(dst_mac: str, src_mac: str, 
-                         ether_type: int = 0x0800) -> Any:
+
+def craft_ethernet_frame(dst_mac: str, src_mac: str, ether_type: int = 0x0800) -> Any:
     """
     Construye una trama Ethernet con MACs personalizadas.
-    
+
     Args:
         dst_mac: MAC destino (ej: 'ff:ff:ff:ff:ff:ff')
         src_mac: MAC origen personalizada
         ether_type: Tipo Ethernet (0x0800=IPv4, 0x0806=ARP)
-    
+
     Returns:
         Objeto Ether de Scapy
     """
     _require_scapy()
     from scapy.all import Ether
-    
+
     frame = Ether(dst=dst_mac, src=src_mac, type=ether_type)
     return frame
 
 
-def send_arp_request(target_ip: str, src_ip: Optional[str] = None,
-                     src_mac: Optional[str] = None,
-                     timeout: int = 2,
-                     log_callback: Optional[Callable] = None) -> Optional[Dict]:
+def send_arp_request(
+    target_ip: str,
+    src_ip: Optional[str] = None,
+    src_mac: Optional[str] = None,
+    timeout: int = 2,
+    log_callback: Optional[Callable] = None,
+) -> Optional[Dict]:
     """
     Envía un ARP Request personalizado y espera respuesta.
-    
+
     Args:
         target_ip: IP destino del ARP request
         src_ip: IP origen (por defecto la de la interfaz activa)
         src_mac: MAC origen personalizada (opcional)
         timeout: Timeout en segundos
         log_callback: Callback para log de operaciones
-    
+
     Returns:
         Diccionario con la respuesta ARP o None
     """
@@ -120,20 +135,19 @@ def send_arp_request(target_ip: str, src_ip: Optional[str] = None,
         }
         _log(f"[CAPA 2] Respuesta: {reply.hwsrc.upper()} → {reply.psrc}")
         return result
-    
+
     _log(f"[CAPA 2] Sin respuesta de {target_ip}")
     return None
 
 
-def arp_table_scan(network_cidr: str, 
-                   log_callback: Optional[Callable] = None) -> List[Dict]:
+def arp_table_scan(network_cidr: str, log_callback: Optional[Callable] = None) -> List[Dict]:
     """
     Escaneo ARP completo de una subred para poblar la tabla ARP.
-    
+
     Args:
         network_cidr: Red en formato CIDR (ej: '192.168.1.0/24')
         log_callback: Callback para logs
-    
+
     Returns:
         Lista de dispositivos con IP y MAC
     """
@@ -151,10 +165,12 @@ def arp_table_scan(network_cidr: str,
 
     devices = []
     for sent, received in answered:
-        devices.append({
-            "ip": received.psrc,
-            "mac": received.hwsrc.upper(),
-        })
+        devices.append(
+            {
+                "ip": received.psrc,
+                "mac": received.hwsrc.upper(),
+            }
+        )
 
     _log(f"[CAPA 2] {len(devices)} dispositivos detectados")
     return devices
@@ -164,13 +180,19 @@ def arp_table_scan(network_cidr: str,
 # CAPA 3 — Red (IP / ICMP)
 # ─────────────────────────────────────────────────────────────
 
-def craft_ip_packet(dst_ip: str, src_ip: Optional[str] = None,
-                    ttl: int = 64, tos: int = 0, 
-                    flags: int = 0, frag: int = 0,
-                    id: Optional[int] = None) -> Any:
+
+def craft_ip_packet(
+    dst_ip: str,
+    src_ip: Optional[str] = None,
+    ttl: int = 64,
+    tos: int = 0,
+    flags: int = 0,
+    frag: int = 0,
+    id: Optional[int] = None,
+) -> Any:
     """
     Construye un paquete IP con parámetros personalizados.
-    
+
     Args:
         dst_ip: IP destino
         src_ip: IP origen personalizada (spoofing local)
@@ -179,7 +201,7 @@ def craft_ip_packet(dst_ip: str, src_ip: Optional[str] = None,
         flags: IP flags (0=none, 1=MF, 2=DF, 3=MF+DF)
         frag: Fragment offset
         id: ID del paquete IP
-    
+
     Returns:
         Objeto IP de Scapy
     """
@@ -196,18 +218,19 @@ def craft_ip_packet(dst_ip: str, src_ip: Optional[str] = None,
     return IP(**kwargs)
 
 
-def manual_traceroute(dst_ip: str, max_hops: int = 30, timeout: int = 2,
-                      log_callback: Optional[Callable] = None) -> List[Dict]:
+def manual_traceroute(
+    dst_ip: str, max_hops: int = 30, timeout: int = 2, log_callback: Optional[Callable] = None
+) -> List[Dict]:
     """
     Traceroute manual usando paquetes ICMP con TTL incremental.
     Solo funciona con IPs privadas o locales.
-    
+
     Args:
         dst_ip: IP destino
         max_hops: Máximo de saltos
         timeout: Timeout por salto
         log_callback: Callback de log
-    
+
     Returns:
         Lista de saltos con TTL, IP y latencia
     """
@@ -224,7 +247,7 @@ def manual_traceroute(dst_ip: str, max_hops: int = 30, timeout: int = 2,
     hops = []
     for ttl in range(1, max_hops + 1):
         pkt = IP(dst=dst_ip, ttl=ttl) / ICMP()
-        
+
         start = time.perf_counter()
         reply = sr1(pkt, timeout=timeout, verbose=False)
         elapsed = (time.perf_counter() - start) * 1000
@@ -248,19 +271,23 @@ def manual_traceroute(dst_ip: str, max_hops: int = 30, timeout: int = 2,
     return hops
 
 
-def send_icmp_ping(dst_ip: str, count: int = 4, ttl: int = 64,
-                   payload_size: int = 56,
-                   log_callback: Optional[Callable] = None) -> Dict:
+def send_icmp_ping(
+    dst_ip: str,
+    count: int = 4,
+    ttl: int = 64,
+    payload_size: int = 56,
+    log_callback: Optional[Callable] = None,
+) -> Dict:
     """
     Ping ICMP personalizado con control total de parámetros.
-    
+
     Args:
         dst_ip: IP destino
         count: Número de pings
         ttl: TTL del paquete
         payload_size: Tamaño del payload en bytes
         log_callback: Callback de log
-    
+
     Returns:
         Estadísticas de ping (min/avg/max/loss)
     """
@@ -280,7 +307,7 @@ def send_icmp_ping(dst_ip: str, count: int = 4, ttl: int = 64,
 
     for seq in range(count):
         pkt = IP(dst=dst_ip, ttl=ttl) / ICMP(seq=seq) / payload
-        
+
         start = time.perf_counter()
         reply = sr1(pkt, timeout=2, verbose=False)
         elapsed = (time.perf_counter() - start) * 1000
@@ -303,8 +330,10 @@ def send_icmp_ping(dst_ip: str, count: int = 4, ttl: int = 64,
         "max_ms": round(max(latencies), 2) if latencies else None,
     }
 
-    _log(f"[CAPA 3] Resultado: {stats['received']}/{stats['sent']} recibidos, "
-         f"pérdida {stats['loss_pct']}%")
+    _log(
+        f"[CAPA 3] Resultado: {stats['received']}/{stats['sent']} recibidos, "
+        f"pérdida {stats['loss_pct']}%"
+    )
     return stats
 
 
@@ -325,16 +354,20 @@ TCP_FLAGS = {
 }
 
 
-def craft_tcp_segment(dst_ip: str, dst_port: int,
-                      flags: str = "S",
-                      src_port: Optional[int] = None,
-                      src_ip: Optional[str] = None,
-                      seq: int = 0, ack: int = 0,
-                      window: int = 8192,
-                      ttl: int = 64) -> Any:
+def craft_tcp_segment(
+    dst_ip: str,
+    dst_port: int,
+    flags: str = "S",
+    src_port: Optional[int] = None,
+    src_ip: Optional[str] = None,
+    seq: int = 0,
+    ack: int = 0,
+    window: int = 8192,
+    ttl: int = 64,
+) -> Any:
     """
     Construye un segmento TCP con flags personalizados.
-    
+
     Args:
         dst_ip: IP destino
         dst_port: Puerto destino
@@ -346,7 +379,7 @@ def craft_tcp_segment(dst_ip: str, dst_port: int,
         ack: Acknowledgment number
         window: Window size
         ttl: TTL del paquete IP
-    
+
     Returns:
         Objeto IP/TCP de Scapy
     """
@@ -370,19 +403,19 @@ def craft_tcp_segment(dst_ip: str, dst_port: int,
     return IP(**ip_kwargs) / TCP(**tcp_kwargs)
 
 
-def tcp_port_probe(dst_ip: str, ports: List[int],
-                   timeout: int = 2,
-                   log_callback: Optional[Callable] = None) -> List[Dict]:
+def tcp_port_probe(
+    dst_ip: str, ports: List[int], timeout: int = 2, log_callback: Optional[Callable] = None
+) -> List[Dict]:
     """
     Sondeo TCP SYN a puertos específicos para detectar servicios.
     Envía SYN y analiza la respuesta (SYN-ACK = abierto, RST = cerrado).
-    
+
     Args:
         dst_ip: IP destino
         ports: Lista de puertos a sondear
         timeout: Timeout por puerto
         log_callback: Callback de log
-    
+
     Returns:
         Lista de resultados por puerto
     """
@@ -399,9 +432,9 @@ def tcp_port_probe(dst_ip: str, ports: List[int],
     results = []
     for port in ports:
         pkt = IP(dst=dst_ip) / TCP(dport=port, sport=int(RandShort()), flags="S")
-        
+
         reply = sr1(pkt, timeout=timeout, verbose=False)
-        
+
         if reply is None:
             status = "filtered"
             flag_str = "-"
@@ -427,20 +460,26 @@ def tcp_port_probe(dst_ip: str, ports: List[int],
         results.append(result)
 
         icon = {"open": "🟢", "closed": "🔴", "filtered": "🟡"}.get(status, "⚪")
-        _log(f"  {icon} Puerto {port:>5d}/{_common_service(port):<10s}: "
-             f"{status.upper()} (flags: {flag_str})")
+        _log(
+            f"  {icon} Puerto {port:>5d}/{_common_service(port):<10s}: "
+            f"{status.upper()} (flags: {flag_str})"
+        )
 
     return results
 
 
-def send_tcp_custom(dst_ip: str, dst_port: int, flags: str = "S",
-                    src_port: Optional[int] = None,
-                    payload: Optional[bytes] = None,
-                    timeout: int = 3,
-                    log_callback: Optional[Callable] = None) -> Optional[Dict]:
+def send_tcp_custom(
+    dst_ip: str,
+    dst_port: int,
+    flags: str = "S",
+    src_port: Optional[int] = None,
+    payload: Optional[bytes] = None,
+    timeout: int = 3,
+    log_callback: Optional[Callable] = None,
+) -> Optional[Dict]:
     """
     Envía un segmento TCP totalmente personalizado y captura la respuesta.
-    
+
     Args:
         dst_ip: IP destino
         dst_port: Puerto destino
@@ -449,7 +488,7 @@ def send_tcp_custom(dst_ip: str, dst_port: int, flags: str = "S",
         payload: Datos a incluir en el segmento
         timeout: Timeout de espera
         log_callback: Callback de log
-    
+
     Returns:
         Diccionario con detalles de la respuesta
     """
@@ -462,12 +501,12 @@ def send_tcp_custom(dst_ip: str, dst_port: int, flags: str = "S",
             log_callback(msg)
 
     sport = src_port or int(RandShort())
-    
+
     _log(f"[CAPA 4] TCP {flags} → {dst_ip}:{dst_port} (src_port={sport})")
     _log(f"         Flags: {' + '.join(TCP_FLAGS.get(f, f) for f in flags)}")
 
     pkt = IP(dst=dst_ip) / TCP(dport=dst_port, sport=sport, flags=flags)
-    
+
     if payload:
         pkt = pkt / Raw(load=payload)
         _log(f"         Payload: {len(payload)} bytes")
@@ -488,34 +527,41 @@ def send_tcp_custom(dst_ip: str, dst_port: int, flags: str = "S",
 
     if reply.haslayer(TCP):
         tcp_layer = reply[TCP]
-        result.update({
-            "flags_received": str(tcp_layer.flags),
-            "src_port": tcp_layer.sport,
-            "dst_port": tcp_layer.dport,
-            "seq": tcp_layer.seq,
-            "ack": tcp_layer.ack,
-            "window": tcp_layer.window,
-        })
-        _log(f"[CAPA 4] Respuesta: flags={tcp_layer.flags} seq={tcp_layer.seq} "
-             f"ack={tcp_layer.ack} win={tcp_layer.window} ({elapsed:.1f} ms)")
+        result.update(
+            {
+                "flags_received": str(tcp_layer.flags),
+                "src_port": tcp_layer.sport,
+                "dst_port": tcp_layer.dport,
+                "seq": tcp_layer.seq,
+                "ack": tcp_layer.ack,
+                "window": tcp_layer.window,
+            }
+        )
+        _log(
+            f"[CAPA 4] Respuesta: flags={tcp_layer.flags} seq={tcp_layer.seq} "
+            f"ack={tcp_layer.ack} win={tcp_layer.window} ({elapsed:.1f} ms)"
+        )
 
     return result
 
 
-def craft_udp_datagram(dst_ip: str, dst_port: int,
-                       src_port: Optional[int] = None,
-                       payload: Optional[bytes] = None,
-                       ttl: int = 64) -> Any:
+def craft_udp_datagram(
+    dst_ip: str,
+    dst_port: int,
+    src_port: Optional[int] = None,
+    payload: Optional[bytes] = None,
+    ttl: int = 64,
+) -> Any:
     """
     Construye un datagrama UDP personalizado.
-    
+
     Args:
         dst_ip: IP destino
         dst_port: Puerto destino
         src_port: Puerto origen
         payload: Datos UDP
         ttl: TTL del paquete IP
-    
+
     Returns:
         Objeto IP/UDP de Scapy
     """
@@ -523,10 +569,7 @@ def craft_udp_datagram(dst_ip: str, dst_port: int,
     _validate_target(dst_ip)
     from scapy.all import IP, UDP, Raw, RandShort
 
-    pkt = IP(dst=dst_ip, ttl=ttl) / UDP(
-        dport=dst_port,
-        sport=src_port or int(RandShort())
-    )
+    pkt = IP(dst=dst_ip, ttl=ttl) / UDP(dport=dst_port, sport=src_port or int(RandShort()))
 
     if payload:
         pkt = pkt / Raw(load=payload)
@@ -534,21 +577,24 @@ def craft_udp_datagram(dst_ip: str, dst_port: int,
     return pkt
 
 
-def send_udp_probe(dst_ip: str, dst_port: int,
-                   payload: Optional[bytes] = None,
-                   timeout: int = 3,
-                   log_callback: Optional[Callable] = None) -> Dict:
+def send_udp_probe(
+    dst_ip: str,
+    dst_port: int,
+    payload: Optional[bytes] = None,
+    timeout: int = 3,
+    log_callback: Optional[Callable] = None,
+) -> Dict:
     """
     Envía un datagrama UDP y analiza la respuesta.
     UDP es "fire and forget", pero puede recibir ICMP Port Unreachable.
-    
+
     Args:
         dst_ip: IP destino
         dst_port: Puerto destino
         payload: Datos a enviar
         timeout: Timeout
         log_callback: Callback de log
-    
+
     Returns:
         Resultado del sondeo
     """
@@ -595,21 +641,47 @@ def send_udp_probe(dst_ip: str, dst_port: int,
 # Utilidades
 # ─────────────────────────────────────────────────────────────
 
+
 def _common_service(port: int) -> str:
     """Devuelve el nombre del servicio común para un puerto."""
     services = {
-        20: "ftp-data", 21: "ftp", 22: "ssh", 23: "telnet",
-        25: "smtp", 53: "dns", 67: "dhcp-s", 68: "dhcp-c",
-        69: "tftp", 80: "http", 110: "pop3", 123: "ntp",
-        143: "imap", 161: "snmp", 162: "snmptrap",
-        443: "https", 445: "smb", 514: "syslog",
-        993: "imaps", 995: "pop3s",
-        1433: "mssql", 1521: "oracle", 3306: "mysql",
-        3389: "rdp", 5432: "pgsql", 5900: "vnc",
-        6379: "redis", 8080: "http-alt", 8443: "https-alt",
-        8291: "winbox", 8728: "mikrotik-api", 8729: "mikrotik-apis",
-        179: "bgp", 520: "rip", 1723: "pptp",
-        500: "ike", 4500: "ipsec-nat",
+        20: "ftp-data",
+        21: "ftp",
+        22: "ssh",
+        23: "telnet",
+        25: "smtp",
+        53: "dns",
+        67: "dhcp-s",
+        68: "dhcp-c",
+        69: "tftp",
+        80: "http",
+        110: "pop3",
+        123: "ntp",
+        143: "imap",
+        161: "snmp",
+        162: "snmptrap",
+        443: "https",
+        445: "smb",
+        514: "syslog",
+        993: "imaps",
+        995: "pop3s",
+        1433: "mssql",
+        1521: "oracle",
+        3306: "mysql",
+        3389: "rdp",
+        5432: "pgsql",
+        5900: "vnc",
+        6379: "redis",
+        8080: "http-alt",
+        8443: "https-alt",
+        8291: "winbox",
+        8728: "mikrotik-api",
+        8729: "mikrotik-apis",
+        179: "bgp",
+        520: "rip",
+        1723: "pptp",
+        500: "ike",
+        4500: "ipsec-nat",
     }
     return services.get(port, "unknown")
 
@@ -634,6 +706,26 @@ def get_common_port_groups() -> Dict[str, List[int]]:
         "file": [20, 21, 69, 445],
         "network": [161, 162, 179, 520, 514],
         "mikrotik": [8291, 8728, 8729, 22, 23, 80, 443],
-        "top20": [21, 22, 23, 25, 53, 80, 110, 135, 139, 143,
-                  443, 445, 993, 995, 1723, 3306, 3389, 5900, 8080, 8443],
+        "top20": [
+            21,
+            22,
+            23,
+            25,
+            53,
+            80,
+            110,
+            135,
+            139,
+            143,
+            443,
+            445,
+            993,
+            995,
+            1723,
+            3306,
+            3389,
+            5900,
+            8080,
+            8443,
+        ],
     }

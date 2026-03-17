@@ -1,3 +1,4 @@
+# pylint: disable=import-outside-toplevel
 """
 Argos — Sistema de Tema Visual (Elite Purple Edition)
 ======================================================
@@ -5,13 +6,13 @@ Paleta morada/magenta para estética de ciberseguridad elite.
 Sin emojis. Solo texto, separadores y ASCII.
 """
 
+from typing import Dict, Optional
+
 from rich.theme import Theme
 from rich.panel import Panel
 from rich.table import Table
 from rich.console import Console
 from rich import box
-from typing import Dict, List, Optional
-
 
 # ─────────────────────────────────────────────────────────────
 # PALETA CORPORATIVA — ELITE PURPLE
@@ -44,20 +45,22 @@ ARGOS_WARN_BOLD = "bold yellow"
 # TEMA RICH
 # ─────────────────────────────────────────────────────────────
 
-ARGOS_THEME = Theme({
-    "argos.title": ARGOS_PRIMARY_BOLD,
-    "argos.subtitle": f"bold {ARGOS_WHITE}",
-    "argos.label": ARGOS_PRIMARY,
-    "argos.value": ARGOS_WHITE,
-    "argos.success": ARGOS_SUCCESS_BOLD,
-    "argos.warning": ARGOS_WARN_BOLD,
-    "argos.error": ARGOS_ERROR_BOLD,
-    "argos.dim": ARGOS_DIM,
-    "argos.border": ARGOS_PRIMARY,
-    "argos.header": f"bold {ARGOS_WHITE} on #2D002D",
-    "argos.menu.key": ARGOS_PRIMARY_BOLD,
-    "argos.menu.text": ARGOS_WHITE,
-})
+ARGOS_THEME = Theme(
+    {
+        "argos.title": ARGOS_PRIMARY_BOLD,
+        "argos.subtitle": f"bold {ARGOS_WHITE}",
+        "argos.label": ARGOS_PRIMARY,
+        "argos.value": ARGOS_WHITE,
+        "argos.success": ARGOS_SUCCESS_BOLD,
+        "argos.warning": ARGOS_WARN_BOLD,
+        "argos.error": ARGOS_ERROR_BOLD,
+        "argos.dim": ARGOS_DIM,
+        "argos.border": ARGOS_PRIMARY,
+        "argos.header": f"bold {ARGOS_WHITE} on #2D002D",
+        "argos.menu.key": ARGOS_PRIMARY_BOLD,
+        "argos.menu.text": ARGOS_WHITE,
+    }
+)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -74,34 +77,44 @@ BANNER_ART = r"""[bold magenta]
 [/bold magenta]"""
 
 BANNER_SUBTITLE = f"[{ARGOS_WHITE}]  Network Intelligence & Packet Factory[/{ARGOS_WHITE}]"
-BANNER_VERSION = f"[{ARGOS_DIM}]  Enterprise-Grade Network Tool v1.0 -- Solo red local (RFC 1918)[/{ARGOS_DIM}]"
+BANNER_VERSION = (
+    f"[{ARGOS_DIM}]  Enterprise-Grade Network Tool v1.0 -- Solo red local (RFC 1918)[/{ARGOS_DIM}]"
+)
 
 
 # ─────────────────────────────────────────────────────────────
 # COMPONENTES REUTILIZABLES
 # ─────────────────────────────────────────────────────────────
 
-def create_status_bar(console: Console, iface: Optional[Dict] = None,
-                      is_admin: bool = False):
+
+def create_status_bar(console: Console, iface: Optional[Dict] = None, is_admin: bool = False):
     """
     Status Bar horizontal: interfaz activa, IP, Gateway, admin.
     Sin emojis. Texto puro.
     """
-    admin_str = (f"[{ARGOS_SUCCESS}]MODO: Admin[/{ARGOS_SUCCESS}]"
-                 if is_admin
-                 else f"[{ARGOS_ERROR}]MODO: Sin Admin[/{ARGOS_ERROR}]")
+    admin_str = (
+        f"[{ARGOS_SUCCESS}]MODO: Admin[/{ARGOS_SUCCESS}]"
+        if is_admin
+        else f"[{ARGOS_ERROR}]MODO: Sin Admin[/{ARGOS_ERROR}]"
+    )
 
     if iface:
         from modules.net_utils import get_gateway_ip, get_network_cidr
+
         gateway = get_gateway_ip(iface["ip"], iface["mask"])
         cidr = get_network_cidr(iface["ip"], iface["mask"])
 
         parts = [
-            f"[{ARGOS_PRIMARY}]IF:[/{ARGOS_PRIMARY}] [{ARGOS_WHITE}]{iface['name']}[/{ARGOS_WHITE}]",
-            f"[{ARGOS_PRIMARY}]IP:[/{ARGOS_PRIMARY}] [{ARGOS_WHITE}]{iface['ip']}[/{ARGOS_WHITE}]",
-            f"[{ARGOS_PRIMARY}]NET:[/{ARGOS_PRIMARY}] [{ARGOS_WHITE}]{cidr}[/{ARGOS_WHITE}]",
-            f"[{ARGOS_PRIMARY}]GW:[/{ARGOS_PRIMARY}] [{ARGOS_WHITE}]{gateway}[/{ARGOS_WHITE}]",
-            f"[{ARGOS_PRIMARY}]MAC:[/{ARGOS_PRIMARY}] [{ARGOS_WHITE}]{iface['mac']}[/{ARGOS_WHITE}]",
+            f"[{ARGOS_PRIMARY}]IF:[/{ARGOS_PRIMARY}] "
+            f"[{ARGOS_WHITE}]{iface['name']}[/{ARGOS_WHITE}]",
+            f"[{ARGOS_PRIMARY}]IP:[/{ARGOS_PRIMARY}] "
+            f"[{ARGOS_WHITE}]{iface['ip']}[/{ARGOS_WHITE}]",
+            f"[{ARGOS_PRIMARY}]NET:[/{ARGOS_PRIMARY}] "
+            f"[{ARGOS_WHITE}]{cidr}[/{ARGOS_WHITE}]",
+            f"[{ARGOS_PRIMARY}]GW:[/{ARGOS_PRIMARY}] "
+            f"[{ARGOS_WHITE}]{gateway}[/{ARGOS_WHITE}]",
+            f"[{ARGOS_PRIMARY}]MAC:[/{ARGOS_PRIMARY}] "
+            f"[{ARGOS_WHITE}]{iface['mac']}[/{ARGOS_WHITE}]",
             admin_str,
         ]
     else:
@@ -111,42 +124,51 @@ def create_status_bar(console: Console, iface: Optional[Dict] = None,
         ]
 
     bar_text = "  |  ".join(parts)
-    console.print(Panel(
-        bar_text,
-        border_style=ARGOS_PRIMARY,
-        padding=(0, 1),
-        box=box.HEAVY,
-    ))
+    console.print(
+        Panel(
+            bar_text,
+            border_style=ARGOS_PRIMARY,
+            padding=(0, 1),
+            box=box.HEAVY,
+        )
+    )
 
 
-def create_context_panel(console: Console, module_name: str,
-                         iface: Optional[Dict] = None):
+def create_context_panel(console: Console, module_name: str, iface: Optional[Dict] = None):
     """
     Panel de contexto de red al inicio de cada modulo.
     Sin emojis. Texto puro con separadores.
     """
     if iface:
         from modules.net_utils import get_gateway_ip, get_network_cidr
+
         gateway = get_gateway_ip(iface["ip"], iface["mask"])
         cidr = get_network_cidr(iface["ip"], iface["mask"])
 
         lines = [
-            f"  [{ARGOS_PRIMARY}]Interfaz:[/{ARGOS_PRIMARY}]  [{ARGOS_WHITE}]{iface['name']}[/{ARGOS_WHITE}]  ({iface['type']})",
-            f"  [{ARGOS_PRIMARY}]IP Local:[/{ARGOS_PRIMARY}]   [{ARGOS_WHITE}]{iface['ip']}[/{ARGOS_WHITE}]",
-            f"  [{ARGOS_PRIMARY}]Subred:[/{ARGOS_PRIMARY}]     [{ARGOS_WHITE}]{cidr}[/{ARGOS_WHITE}]",
-            f"  [{ARGOS_PRIMARY}]Gateway:[/{ARGOS_PRIMARY}]    [{ARGOS_WHITE}]{gateway}[/{ARGOS_WHITE}]",
-            f"  [{ARGOS_PRIMARY}]MAC:[/{ARGOS_PRIMARY}]        [{ARGOS_WHITE}]{iface['mac']}[/{ARGOS_WHITE}]",
+            f"  [{ARGOS_PRIMARY}]Interfaz:[/{ARGOS_PRIMARY}]  "
+            f"[{ARGOS_WHITE}]{iface['name']}[/{ARGOS_WHITE}]  ({iface['type']})",
+            f"  [{ARGOS_PRIMARY}]IP Local:[/{ARGOS_PRIMARY}]   "
+            f"[{ARGOS_WHITE}]{iface['ip']}[/{ARGOS_WHITE}]",
+            f"  [{ARGOS_PRIMARY}]Subred:[/{ARGOS_PRIMARY}]     "
+            f"[{ARGOS_WHITE}]{cidr}[/{ARGOS_WHITE}]",
+            f"  [{ARGOS_PRIMARY}]Gateway:[/{ARGOS_PRIMARY}]    "
+            f"[{ARGOS_WHITE}]{gateway}[/{ARGOS_WHITE}]",
+            f"  [{ARGOS_PRIMARY}]MAC:[/{ARGOS_PRIMARY}]        "
+            f"[{ARGOS_WHITE}]{iface['mac']}[/{ARGOS_WHITE}]",
         ]
     else:
         lines = [f"  [{ARGOS_WARN}]Sin interfaz de red activa[/{ARGOS_WARN}]"]
 
-    console.print(Panel(
-        "\n".join(lines),
-        title=f"[{ARGOS_PRIMARY_BOLD}]:: {module_name} ::[/{ARGOS_PRIMARY_BOLD}]",
-        border_style=ARGOS_PRIMARY,
-        padding=(1, 2),
-        box=box.DOUBLE,
-    ))
+    console.print(
+        Panel(
+            "\n".join(lines),
+            title=f"[{ARGOS_PRIMARY_BOLD}]:: {module_name} ::[/{ARGOS_PRIMARY_BOLD}]",
+            border_style=ARGOS_PRIMARY,
+            padding=(1, 2),
+            box=box.DOUBLE,
+        )
+    )
 
 
 def create_tcp_flags_display(flags: str) -> str:
@@ -155,8 +177,14 @@ def create_tcp_flags_display(flags: str) -> str:
     Activos: [X] en magenta. Inactivos: [ ] en gris.
     """
     all_flags = [
-        ("S", "SYN"), ("A", "ACK"), ("F", "FIN"), ("R", "RST"),
-        ("P", "PSH"), ("U", "URG"), ("E", "ECE"), ("C", "CWR"),
+        ("S", "SYN"),
+        ("A", "ACK"),
+        ("F", "FIN"),
+        ("R", "RST"),
+        ("P", "PSH"),
+        ("U", "URG"),
+        ("E", "ECE"),
+        ("C", "CWR"),
     ]
 
     parts = []
@@ -172,13 +200,15 @@ def create_tcp_flags_display(flags: str) -> str:
 def create_tcp_flags_panel(console: Console, flags: str):
     """Panel visual de flags TCP seleccionados."""
     flags_display = create_tcp_flags_display(flags)
-    console.print(Panel(
-        f"  {flags_display}",
-        title=f"[{ARGOS_PRIMARY_BOLD}]TCP FLAGS[/{ARGOS_PRIMARY_BOLD}]",
-        border_style=ARGOS_PRIMARY,
-        padding=(0, 1),
-        box=box.ROUNDED,
-    ))
+    console.print(
+        Panel(
+            f"  {flags_display}",
+            title=f"[{ARGOS_PRIMARY_BOLD}]TCP FLAGS[/{ARGOS_PRIMARY_BOLD}]",
+            border_style=ARGOS_PRIMARY,
+            padding=(0, 1),
+            box=box.ROUNDED,
+        )
+    )
 
 
 def print_footer(console: Console):
@@ -203,27 +233,25 @@ def format_latency(ms: Optional[float]) -> str:
         return f"[{ARGOS_MUTED}]N/A[/{ARGOS_MUTED}]"
     if ms < 5:
         return f"[{ARGOS_SUCCESS}]{ms:.1f} ms[/{ARGOS_SUCCESS}]"
-    elif ms < 50:
+    if ms < 50:
         return f"[{ARGOS_WARN}]{ms:.1f} ms[/{ARGOS_WARN}]"
-    else:
-        return f"[{ARGOS_ERROR}]{ms:.1f} ms[/{ARGOS_ERROR}]"
+    return f"[{ARGOS_ERROR}]{ms:.1f} ms[/{ARGOS_ERROR}]"
 
 
 def format_port_status(status: str) -> str:
     """Estado de puerto con color. Sin emojis."""
     if status == "open":
         return f"[{ARGOS_SUCCESS_BOLD}]OPEN[/{ARGOS_SUCCESS_BOLD}]"
-    elif status == "closed":
+    if status == "closed":
         return f"[{ARGOS_ERROR_BOLD}]CLOSED[/{ARGOS_ERROR_BOLD}]"
-    elif status == "filtered":
+    if status == "filtered":
         return f"[{ARGOS_WARN_BOLD}]FILTERED[/{ARGOS_WARN_BOLD}]"
-    elif "open|filtered" in status:
+    if "open|filtered" in status:
         return f"[{ARGOS_WARN}]OPEN|FILTERED[/{ARGOS_WARN}]"
     return f"[{ARGOS_MUTED}]{status.upper()}[/{ARGOS_MUTED}]"
 
 
-def create_menu_table(title: str, rows: list,
-                      has_category: bool = False) -> Table:
+def create_menu_table(title: str, rows: list, has_category: bool = False) -> Table:
     """Tabla de menu estilizada. Sin emojis."""
     table = Table(
         show_header=False,

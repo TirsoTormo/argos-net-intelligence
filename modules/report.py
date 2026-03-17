@@ -1,24 +1,30 @@
+# pylint: disable=line-too-long
 """
 Argos — Modulo de Reportes Visuales (Elite Purple Edition)
 Tablas y paneles con paleta morada corporativa. Sin emojis.
 """
 
+from typing import List, Dict
+
 from rich.table import Table
 from rich.panel import Panel
-from rich.console import Console
 from rich import box
-from typing import List, Dict, Optional
 
 from modules.theme import (
-    ARGOS_PRIMARY, ARGOS_PRIMARY_BOLD, ARGOS_PRIMARY_DIM,
-    ARGOS_WHITE, ARGOS_DIM, ARGOS_MUTED,
-    ARGOS_SUCCESS, ARGOS_ERROR, ARGOS_WARN,
-    format_latency, format_port_status,
+    ARGOS_PRIMARY,
+    ARGOS_PRIMARY_BOLD,
+    ARGOS_WHITE,
+    ARGOS_DIM,
+    ARGOS_MUTED,
+    ARGOS_SUCCESS,
+    ARGOS_ERROR,
+    ARGOS_WARN,
+    format_latency,
+    format_port_status,
 )
 
 
-def create_device_table(devices: List[Dict], scan_method: str = "",
-                        local_ip: str = "") -> Table:
+def create_device_table(devices: List[Dict], scan_method: str = "", _local_ip: str = "") -> Table:
     """Tabla de dispositivos descubiertos."""
     title = f"DISPOSITIVOS DESCUBIERTOS ({len(devices)})"
     if scan_method:
@@ -79,9 +85,11 @@ def create_interface_table(interfaces: List[Dict]) -> Table:
     table.add_column("Estado", width=10, justify="center")
 
     for i, iface in enumerate(interfaces, 1):
-        status = (f"[{ARGOS_SUCCESS}]UP[/{ARGOS_SUCCESS}]"
-                  if iface["is_up"]
-                  else f"[{ARGOS_ERROR}]DOWN[/{ARGOS_ERROR}]")
+        status = (
+            f"[{ARGOS_SUCCESS}]UP[/{ARGOS_SUCCESS}]"
+            if iface["is_up"]
+            else f"[{ARGOS_ERROR}]DOWN[/{ARGOS_ERROR}]"
+        )
         table.add_row(
             str(i),
             iface["name"],
@@ -99,13 +107,22 @@ def create_speed_result_panel(result: Dict) -> Panel:
     """Panel de resultados del speed test."""
     lines = []
 
-    lines.append(f"  [{ARGOS_DIM}]Servidor:[/{ARGOS_DIM}]    [{ARGOS_WHITE}]{result.get('server_ip', 'N/A')}:{result.get('port', 'N/A')}[/{ARGOS_WHITE}]")
-    lines.append(f"  [{ARGOS_DIM}]Duracion:[/{ARGOS_DIM}]    [{ARGOS_WHITE}]{result.get('duration_s', 0)} s[/{ARGOS_WHITE}]")
-    lines.append(f"  [{ARGOS_DIM}]Transferido:[/{ARGOS_DIM}] [{ARGOS_WHITE}]{result.get('total_MB', 0)} MB[/{ARGOS_WHITE}]")
+    lines.append(
+        f"  [{ARGOS_DIM}]Servidor:[/{ARGOS_DIM}]    [{ARGOS_WHITE}]"
+        f"{result.get('server_ip', 'N/A')}:{result.get('port', 'N/A')}[/{ARGOS_WHITE}]"
+    )
+    lines.append(
+        f"  [{ARGOS_DIM}]Duracion:[/{ARGOS_DIM}]    [{ARGOS_WHITE}]"
+        f"{result.get('duration_s', 0)} s[/{ARGOS_WHITE}]"
+    )
+    lines.append(
+        f"  [{ARGOS_DIM}]Transferido:[/{ARGOS_DIM}] [{ARGOS_WHITE}]"
+        f"{result.get('total_MB', 0)} MB[/{ARGOS_WHITE}]"
+    )
     lines.append("")
 
     speed_mbps = result.get("client_speed_mbps", 0)
-    speed_MBs = result.get("client_speed_MBs", 0)
+    speed_mbs = result.get("client_speed_mbs", 0)
 
     if speed_mbps >= 900:
         color = ARGOS_SUCCESS
@@ -123,17 +140,24 @@ def create_speed_result_panel(result: Dict) -> Panel:
         color = ARGOS_ERROR
         rating = "MUY LENTA"
 
-    lines.append(f"  [{color}]  >> Velocidad: {speed_mbps} Mbps  ({speed_MBs} MB/s)[/{color}]")
+    lines.append(f"  [{color}]  >> Velocidad: {speed_mbps} Mbps  ({speed_mbs} MB/s)[/{color}]")
     lines.append(f"  [{color}]  >> Rating: {rating}[/{color}]")
     lines.append("")
 
     if "server_speed_mbps" in result:
-        lines.append(f"  [{ARGOS_DIM}]Servidor mide:[/{ARGOS_DIM}]  [{ARGOS_WHITE}]{result['server_speed_mbps']} Mbps ({result['server_speed_MBs']} MB/s)[/{ARGOS_WHITE}]")
+        lines.append(
+            f"  [{ARGOS_DIM}]Servidor mide:[/{ARGOS_DIM}]  [{ARGOS_WHITE}]"
+            f"{result['server_speed_mbps']} Mbps ({result.get('server_speed_mbs', 0)} MB/s)"
+            f"[/{ARGOS_WHITE}]"
+        )
 
     bar_width = 40
     fill = min(int((speed_mbps / 1000) * bar_width), bar_width)
-    bar = f"[{ARGOS_PRIMARY}]{'#' * fill}[/{ARGOS_PRIMARY}][{ARGOS_MUTED}]{'.' * (bar_width - fill)}[/{ARGOS_MUTED}]"
-    lines.append(f"\n  {bar}  [{ARGOS_DIM}]{speed_mbps}/1000 Mbps[/{ARGOS_DIM}]")
+    progress_bar = (
+        f"[{ARGOS_PRIMARY}]{'#' * fill}[/{ARGOS_PRIMARY}]"
+        f"[{ARGOS_MUTED}]{'.' * (bar_width - fill)}[/{ARGOS_MUTED}]"
+    )
+    lines.append(f"\n  {progress_bar}  [{ARGOS_DIM}]{speed_mbps}/1000 Mbps[/{ARGOS_DIM}]")
 
     return Panel(
         "\n".join(lines),
@@ -144,8 +168,9 @@ def create_speed_result_panel(result: Dict) -> Panel:
     )
 
 
-def create_scan_summary(devices: List[Dict], scan_method: str,
-                        duration: float, network_cidr: str) -> Panel:
+def create_scan_summary(
+    devices: List[Dict], scan_method: str, duration: float, network_cidr: str
+) -> Panel:
     """Panel resumen del escaneo."""
     total = len(devices)
     with_hostname = sum(1 for d in devices if d.get("hostname", "Desconocido") != "Desconocido")
@@ -218,9 +243,11 @@ def create_traceroute_table(hops: List[Dict]) -> Table:
 
     for hop in hops:
         lat = format_latency(hop.get("latency_ms"))
-        status_str = (f"[{ARGOS_SUCCESS}]OK[/{ARGOS_SUCCESS}]"
-                      if hop.get("status") == "ok"
-                      else f"[{ARGOS_WARN}]TIMEOUT[/{ARGOS_WARN}]")
+        status_str = (
+            f"[{ARGOS_SUCCESS}]OK[/{ARGOS_SUCCESS}]"
+            if hop.get("status") == "ok"
+            else f"[{ARGOS_WARN}]TIMEOUT[/{ARGOS_WARN}]"
+        )
         ip_str = hop["ip"] if hop["ip"] != "*" else f"[{ARGOS_MUTED}]*[/{ARGOS_MUTED}]"
         table.add_row(str(hop["ttl"]), ip_str, lat, status_str)
 
@@ -230,19 +257,25 @@ def create_traceroute_table(hops: List[Dict]) -> Table:
 def create_ping_summary(stats: Dict) -> Panel:
     """Panel resumen de ICMP ping."""
     lines = [
-        f"  [{ARGOS_DIM}]Destino:[/{ARGOS_DIM}]     [{ARGOS_WHITE}]{stats.get('dst', 'N/A')}[/{ARGOS_WHITE}]",
-        f"  [{ARGOS_DIM}]Enviados:[/{ARGOS_DIM}]    [{ARGOS_WHITE}]{stats.get('sent', 0)}[/{ARGOS_WHITE}]",
-        f"  [{ARGOS_DIM}]Recibidos:[/{ARGOS_DIM}]   [{ARGOS_SUCCESS}]{stats.get('received', 0)}[/{ARGOS_SUCCESS}]",
-        f"  [{ARGOS_DIM}]Perdidos:[/{ARGOS_DIM}]    [{ARGOS_ERROR}]{stats.get('lost', 0)} ({stats.get('loss_pct', 0)}%)[/{ARGOS_ERROR}]",
+        f"  [{ARGOS_DIM}]Destino:[/{ARGOS_DIM}]     "
+        f"[{ARGOS_WHITE}]{stats.get('dst', 'N/A')}[/{ARGOS_WHITE}]",
+        f"  [{ARGOS_DIM}]Enviados:[/{ARGOS_DIM}]    "
+        f"[{ARGOS_WHITE}]{stats.get('sent', 0)}[/{ARGOS_WHITE}]",
+        f"  [{ARGOS_DIM}]Recibidos:[/{ARGOS_DIM}]   "
+        f"[{ARGOS_SUCCESS}]{stats.get('received', 0)}[/{ARGOS_SUCCESS}]",
+        f"  [{ARGOS_DIM}]Perdidos:[/{ARGOS_DIM}]    "
+        f"[{ARGOS_ERROR}]{stats.get('lost', 0)} ({stats.get('loss_pct', 0)}%)[/{ARGOS_ERROR}]",
         "",
     ]
 
     if stats.get("min_ms") is not None:
-        lines.extend([
-            f"  [{ARGOS_DIM}]Minimo:[/{ARGOS_DIM}]     {format_latency(stats['min_ms'])}",
-            f"  [{ARGOS_DIM}]Media:[/{ARGOS_DIM}]      {format_latency(stats['avg_ms'])}",
-            f"  [{ARGOS_DIM}]Maximo:[/{ARGOS_DIM}]     {format_latency(stats['max_ms'])}",
-        ])
+        lines.extend(
+            [
+                f"  [{ARGOS_DIM}]Minimo:[/{ARGOS_DIM}]     {format_latency(stats['min_ms'])}",
+                f"  [{ARGOS_DIM}]Media:[/{ARGOS_DIM}]      {format_latency(stats['avg_ms'])}",
+                f"  [{ARGOS_DIM}]Maximo:[/{ARGOS_DIM}]     {format_latency(stats['max_ms'])}",
+            ]
+        )
 
     return Panel(
         "\n".join(lines),

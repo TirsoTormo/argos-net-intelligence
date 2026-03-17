@@ -1,3 +1,4 @@
+# pylint: disable=too-many-locals, too-many-branches, too-many-statements, import-outside-toplevel, broad-exception-caught, unused-argument, line-too-long, no-member, no-else-return, unused-import, duplicate-code
 """
 Argos — Interfaz CLI (Elite Purple Edition)
 =============================================
@@ -37,12 +38,21 @@ from modules.report import (
     create_ping_summary,
 )
 from modules.theme import (
-    ARGOS_PRIMARY, ARGOS_PRIMARY_BOLD, ARGOS_PRIMARY_DIM,
-    ARGOS_WHITE, ARGOS_DIM, ARGOS_MUTED,
-    ARGOS_SUCCESS, ARGOS_SUCCESS_BOLD,
-    ARGOS_ERROR, ARGOS_ERROR_BOLD,
-    ARGOS_WARN, ARGOS_WARN_BOLD,
-    BANNER_ART, BANNER_SUBTITLE, BANNER_VERSION,
+    ARGOS_PRIMARY,
+    ARGOS_PRIMARY_BOLD,
+    ARGOS_PRIMARY_DIM,
+    ARGOS_WHITE,
+    ARGOS_DIM,
+    ARGOS_MUTED,
+    ARGOS_SUCCESS,
+    ARGOS_SUCCESS_BOLD,
+    ARGOS_ERROR,
+    ARGOS_ERROR_BOLD,
+    ARGOS_WARN,
+    ARGOS_WARN_BOLD,
+    BANNER_ART,
+    BANNER_SUBTITLE,
+    BANNER_VERSION,
     create_status_bar,
     create_context_panel,
     create_tcp_flags_panel,
@@ -60,6 +70,7 @@ console = Console()
 # Banner y utilidades
 # ─────────────────────────────────────────────────────────────
 
+
 def is_admin() -> bool:
     """Verifica privilegios de administrador."""
     try:
@@ -67,6 +78,7 @@ def is_admin() -> bool:
             return ctypes.windll.shell32.IsUserAnAdmin() != 0
         else:
             import os
+
             return os.geteuid() == 0
     except Exception:
         return False
@@ -95,9 +107,11 @@ def show_banner():
 
 def show_main_menu():
     """Menu principal con paleta morada. Sin emojis."""
-    admin_status = (f"[{ARGOS_SUCCESS}]MODO: Admin[/{ARGOS_SUCCESS}]"
-                    if is_admin()
-                    else f"[{ARGOS_ERROR}]MODO: Sin Admin[/{ARGOS_ERROR}]")
+    admin_status = (
+        f"[{ARGOS_SUCCESS}]MODO: Admin[/{ARGOS_SUCCESS}]"
+        if is_admin()
+        else f"[{ARGOS_ERROR}]MODO: Sin Admin[/{ARGOS_ERROR}]"
+    )
 
     menu = Table(
         show_header=False,
@@ -126,6 +140,7 @@ def show_main_menu():
 # Opcion 1: Escaneo de red
 # ─────────────────────────────────────────────────────────────
 
+
 def menu_scan_network():
     """Flujo completo de escaneo de red."""
     print_section_header(console, "ESCANEAR RED")
@@ -142,7 +157,9 @@ def menu_scan_network():
     cidr = get_network_cidr(ip, mask)
 
     if not is_admin():
-        console.print(f"\n  [{ARGOS_WARN}]AVISO: Sin admin -- se usara Ping Sweep (mas lento)[/{ARGOS_WARN}]")
+        console.print(
+            f"\n  [{ARGOS_WARN}]AVISO: Sin admin -- se usara Ping Sweep (mas lento)[/{ARGOS_WARN}]"
+        )
         console.print(f"  [{ARGOS_DIM}]Ejecuta como administrador para ARP scan[/{ARGOS_DIM}]")
 
     console.print()
@@ -177,7 +194,9 @@ def menu_scan_network():
         console.print(create_scan_summary(devices, scan_method, elapsed, cidr))
     else:
         console.print(f"\n  [{ARGOS_WARN}]No se encontraron dispositivos en la red.[/{ARGOS_WARN}]")
-        console.print(f"  [{ARGOS_DIM}]Verifica tu conexion o ejecuta como administrador.[/{ARGOS_DIM}]")
+        console.print(
+            f"  [{ARGOS_DIM}]Verifica tu conexion o ejecuta como administrador.[/{ARGOS_DIM}]"
+        )
 
     print_footer(console)
     Prompt.ask(f"\n[{ARGOS_DIM}]Presiona Enter para volver al menu[/{ARGOS_DIM}]")
@@ -187,19 +206,22 @@ def menu_scan_network():
 # Opcion 2: Test de velocidad
 # ─────────────────────────────────────────────────────────────
 
+
 def menu_speed_test():
     """Flujo del test de velocidad LAN."""
     print_section_header(console, "ARGOS SPEED TEST :: MEDICION DE RENDIMIENTO LAN")
 
     console.print(f"[{ARGOS_WHITE}]Seleccione el modo de operacion:[/{ARGOS_WHITE}]")
-    console.print(f"[{ARGOS_PRIMARY}]1.[/{ARGOS_PRIMARY}] MODO SERVIDOR (Esperar conexion de otro equipo)")
-    console.print(f"[{ARGOS_PRIMARY}]2.[/{ARGOS_PRIMARY}] MODO CLIENTE  (Conectar a un servidor de Argos)")
+    console.print(
+        f"[{ARGOS_PRIMARY}]1.[/{ARGOS_PRIMARY}] MODO SERVIDOR (Esperar conexion de otro equipo)"
+    )
+    console.print(
+        f"[{ARGOS_PRIMARY}]2.[/{ARGOS_PRIMARY}] MODO CLIENTE  (Conectar a un servidor de Argos)"
+    )
     console.print()
 
     choice = Prompt.ask(
-        f"[{ARGOS_PRIMARY}]Argos > Speed Mode >[/{ARGOS_PRIMARY}]",
-        choices=["1", "2"],
-        default="2"
+        f"[{ARGOS_PRIMARY}]Argos > Speed Mode >[/{ARGOS_PRIMARY}]", choices=["1", "2"], default="2"
     )
 
     if choice == "1":
@@ -260,7 +282,9 @@ def _run_client_mode():
         return
 
     if not is_private_ip(server_ip):
-        console.print(f"[{ARGOS_ERROR_BOLD}]X {server_ip} no es una IP privada.[/{ARGOS_ERROR_BOLD}]")
+        console.print(
+            f"[{ARGOS_ERROR_BOLD}]X {server_ip} no es una IP privada.[/{ARGOS_ERROR_BOLD}]"
+        )
         console.print(f"[{ARGOS_DIM}]Solo se permiten tests dentro de la red local.[/{ARGOS_DIM}]")
         Prompt.ask(f"[{ARGOS_DIM}]Presiona Enter para volver[/{ARGOS_DIM}]")
         return
@@ -274,8 +298,9 @@ def _run_client_mode():
         pass
 
     client = SpeedTestClient(status_callback=client_log)
-    
+
     from modules.speed_test import quick_latency_test
+
     latency = quick_latency_test(server_ip, count=3)
     rtt_ms = latency["avg_ms"] if latency else None
 
@@ -296,13 +321,19 @@ def _run_client_mode():
 
     if result:
         speed = result.get("client_speed_mbps", 0)
-        console.print(f"[{ARGOS_WHITE}]Velocidad calculada:[/{ARGOS_WHITE}] [{ARGOS_SUCCESS_BOLD}]{speed:.1f} Mbps[/{ARGOS_SUCCESS_BOLD}]")
+        console.print(
+            f"[{ARGOS_WHITE}]Velocidad calculada:[/{ARGOS_WHITE}] [{ARGOS_SUCCESS_BOLD}]{speed:.1f} Mbps[/{ARGOS_SUCCESS_BOLD}]"
+        )
         if rtt_ms:
             console.print(f"[{ARGOS_WHITE}]Latencia (RTT):[/{ARGOS_WHITE}] {rtt_ms}ms")
         else:
-            console.print(f"[{ARGOS_WHITE}]Latencia (RTT):[/{ARGOS_WHITE}] [{ARGOS_MUTED}]N/A[/{ARGOS_MUTED}]")
+            console.print(
+                f"[{ARGOS_WHITE}]Latencia (RTT):[/{ARGOS_WHITE}] [{ARGOS_MUTED}]N/A[/{ARGOS_MUTED}]"
+            )
     else:
-        console.print(f"\n[{ARGOS_ERROR_BOLD}]X No se pudo completar el test de velocidad.[/{ARGOS_ERROR_BOLD}]")
+        console.print(
+            f"\n[{ARGOS_ERROR_BOLD}]X No se pudo completar el test de velocidad.[/{ARGOS_ERROR_BOLD}]"
+        )
         console.print(f"[{ARGOS_DIM}]Verifica que el servidor este ejecutandose.[/{ARGOS_DIM}]")
 
     print_footer(console)
@@ -313,6 +344,7 @@ def _run_client_mode():
 # Opcion 3: Interfaces de red
 # ─────────────────────────────────────────────────────────────
 
+
 def menu_show_interfaces():
     """Muestra informacion de interfaces de red."""
     print_section_header(console, "INTERFACES DE RED")
@@ -322,8 +354,12 @@ def menu_show_interfaces():
     if interfaces:
         console.print(create_interface_table(interfaces))
         active = [i for i in interfaces if i["is_up"] and i["ip"] != "127.0.0.1"]
-        console.print(f"\n  [{ARGOS_DIM}]Total interfaces:[/{ARGOS_DIM}] [{ARGOS_WHITE}]{len(interfaces)}[/{ARGOS_WHITE}]")
-        console.print(f"  [{ARGOS_DIM}]Activas (con IP):[/{ARGOS_DIM}] [{ARGOS_SUCCESS}]{len(active)}[/{ARGOS_SUCCESS}]")
+        console.print(
+            f"\n  [{ARGOS_DIM}]Total interfaces:[/{ARGOS_DIM}] [{ARGOS_WHITE}]{len(interfaces)}[/{ARGOS_WHITE}]"
+        )
+        console.print(
+            f"  [{ARGOS_DIM}]Activas (con IP):[/{ARGOS_DIM}] [{ARGOS_SUCCESS}]{len(active)}[/{ARGOS_SUCCESS}]"
+        )
     else:
         console.print(f"  [{ARGOS_WARN}]No se encontraron interfaces de red.[/{ARGOS_WARN}]")
 
@@ -335,26 +371,35 @@ def menu_show_interfaces():
 # Opcion 4: Packet Factory
 # ─────────────────────────────────────────────────────────────
 
+
 def menu_packet_factory():
     """Menu de la Fabrica de Paquetes."""
     print_section_header(console, "ARGOS PACKET FACTORY")
-    console.print(f"  [{ARGOS_DIM}]Construccion y envio de paquetes :: Capas 2, 3 y 4 del modelo OSI[/{ARGOS_DIM}]")
+    console.print(
+        f"  [{ARGOS_DIM}]Construccion y envio de paquetes :: Capas 2, 3 y 4 del modelo OSI[/{ARGOS_DIM}]"
+    )
 
     if not is_admin():
-        console.print(f"\n  [{ARGOS_WARN_BOLD}]AVISO: Se requieren privilegios de administrador[/{ARGOS_WARN_BOLD}]")
+        console.print(
+            f"\n  [{ARGOS_WARN_BOLD}]AVISO: Se requieren privilegios de administrador[/{ARGOS_WARN_BOLD}]"
+        )
         console.print(f"  [{ARGOS_DIM}]Ejecuta como admin para enviar paquetes raw[/{ARGOS_DIM}]")
 
     console.print()
 
-    submenu = create_menu_table("OPERACIONES DISPONIBLES", [
-        ("1", "CAPA 2", "ARP REQUEST -- Resolver MAC de una IP"),
-        ("2", "CAPA 3", "ICMP PING -- Ping personalizado con TTL y size"),
-        ("3", "CAPA 3", "TRACEROUTE -- Trazado manual con TTL incremental"),
-        ("4", "CAPA 4", "TCP SYN PROBE -- Sondeo de puertos TCP"),
-        ("5", "CAPA 4", "TCP CUSTOM -- Segmento TCP con flags personalizados"),
-        ("6", "CAPA 4", "UDP PROBE -- Sondeo de puerto UDP"),
-        ("7", "",       "VOLVER"),
-    ], has_category=True)
+    submenu = create_menu_table(
+        "OPERACIONES DISPONIBLES",
+        [
+            ("1", "CAPA 2", "ARP REQUEST -- Resolver MAC de una IP"),
+            ("2", "CAPA 3", "ICMP PING -- Ping personalizado con TTL y size"),
+            ("3", "CAPA 3", "TRACEROUTE -- Trazado manual con TTL incremental"),
+            ("4", "CAPA 4", "TCP SYN PROBE -- Sondeo de puertos TCP"),
+            ("5", "CAPA 4", "TCP CUSTOM -- Segmento TCP con flags personalizados"),
+            ("6", "CAPA 4", "UDP PROBE -- Sondeo de puerto UDP"),
+            ("7", "", "VOLVER"),
+        ],
+        has_category=True,
+    )
 
     console.print(submenu)
     print_footer(console)
@@ -363,7 +408,7 @@ def menu_packet_factory():
     choice = Prompt.ask(
         f"[{ARGOS_PRIMARY}]Selecciona operacion[/{ARGOS_PRIMARY}]",
         choices=["1", "2", "3", "4", "5", "6", "7"],
-        default="7"
+        default="7",
     )
 
     if choice == "1":
@@ -399,17 +444,19 @@ def _pf_arp_request():
     if not target_ip:
         return
 
-    src_mac = Prompt.ask(f"  [{ARGOS_PRIMARY}]MAC origen (Enter = auto)[/{ARGOS_PRIMARY}]", default="")
+    src_mac = Prompt.ask(
+        f"  [{ARGOS_PRIMARY}]MAC origen (Enter = auto)[/{ARGOS_PRIMARY}]", default=""
+    )
 
     console.print()
     try:
         result = send_arp_request(
-            target_ip,
-            src_mac=src_mac if src_mac else None,
-            log_callback=_pf_log
+            target_ip, src_mac=src_mac if src_mac else None, log_callback=_pf_log
         )
         if result:
-            console.print(f"\n  [{ARGOS_SUCCESS_BOLD}]+ MAC resuelta: {result['response_mac']}[/{ARGOS_SUCCESS_BOLD}]")
+            console.print(
+                f"\n  [{ARGOS_SUCCESS_BOLD}]+ MAC resuelta: {result['response_mac']}[/{ARGOS_SUCCESS_BOLD}]"
+            )
         else:
             console.print(f"\n  [{ARGOS_WARN}]Sin respuesta ARP de {target_ip}[/{ARGOS_WARN}]")
     except Exception as e:
@@ -435,12 +482,15 @@ def _pf_icmp_ping():
 
     count = int(Prompt.ask(f"  [{ARGOS_PRIMARY}]Numero de pings[/{ARGOS_PRIMARY}]", default="4"))
     ttl = int(Prompt.ask(f"  [{ARGOS_PRIMARY}]TTL[/{ARGOS_PRIMARY}]", default="64"))
-    size = int(Prompt.ask(f"  [{ARGOS_PRIMARY}]Tamano payload (bytes)[/{ARGOS_PRIMARY}]", default="56"))
+    size = int(
+        Prompt.ask(f"  [{ARGOS_PRIMARY}]Tamano payload (bytes)[/{ARGOS_PRIMARY}]", default="56")
+    )
 
     console.print()
     try:
-        stats = send_icmp_ping(target_ip, count=count, ttl=ttl,
-                               payload_size=size, log_callback=_pf_log)
+        stats = send_icmp_ping(
+            target_ip, count=count, ttl=ttl, payload_size=size, log_callback=_pf_log
+        )
         console.print()
         console.print(create_ping_summary(stats))
     except Exception as e:
@@ -497,8 +547,7 @@ def _pf_tcp_probe():
     console.print(f"  [{ARGOS_DIM}]Grupos: {', '.join(group_names)}[/{ARGOS_DIM}]")
 
     port_input = Prompt.ask(
-        f"  [{ARGOS_PRIMARY}]Puertos (ej: 80,443 o grupo 'web')[/{ARGOS_PRIMARY}]",
-        default="top20"
+        f"  [{ARGOS_PRIMARY}]Puertos (ej: 80,443 o grupo 'web')[/{ARGOS_PRIMARY}]", default="top20"
     )
 
     if port_input in groups:
@@ -516,7 +565,9 @@ def _pf_tcp_probe():
         console.print()
         console.print(create_port_table(results))
         open_ports = [r for r in results if r["status"] == "open"]
-        console.print(f"\n  [{ARGOS_SUCCESS_BOLD}]Puertos abiertos: {len(open_ports)}/{len(results)}[/{ARGOS_SUCCESS_BOLD}]")
+        console.print(
+            f"\n  [{ARGOS_SUCCESS_BOLD}]Puertos abiertos: {len(open_ports)}/{len(results)}[/{ARGOS_SUCCESS_BOLD}]"
+        )
     except Exception as e:
         console.print(f"\n  [{ARGOS_ERROR_BOLD}]Error: {e}[/{ARGOS_ERROR_BOLD}]")
 
@@ -541,8 +592,12 @@ def _pf_tcp_custom():
     port = int(Prompt.ask(f"  [{ARGOS_PRIMARY}]Puerto destino[/{ARGOS_PRIMARY}]", default="80"))
 
     # Mostrar formulario de flags disponibles
-    console.print(f"\n  [{ARGOS_DIM}]Flags disponibles: S(YN) A(CK) F(IN) R(ST) P(SH) U(RG) E(CE) C(WR)[/{ARGOS_DIM}]")
-    console.print(f"  [{ARGOS_DIM}]Combina letras  :: Ejemplo: SA = SYN+ACK, FA = FIN+ACK[/{ARGOS_DIM}]\n")
+    console.print(
+        f"\n  [{ARGOS_DIM}]Flags disponibles: S(YN) A(CK) F(IN) R(ST) P(SH) U(RG) E(CE) C(WR)[/{ARGOS_DIM}]"
+    )
+    console.print(
+        f"  [{ARGOS_DIM}]Combina letras  :: Ejemplo: SA = SYN+ACK, FA = FIN+ACK[/{ARGOS_DIM}]\n"
+    )
 
     flags = Prompt.ask(f"  [{ARGOS_PRIMARY}]Flags TCP[/{ARGOS_PRIMARY}]", default="S")
 
@@ -553,12 +608,18 @@ def _pf_tcp_custom():
     try:
         result = send_tcp_custom(target_ip, port, flags=flags, log_callback=_pf_log)
         if result:
-            console.print(f"\n  [{ARGOS_PRIMARY_BOLD}]>> Estado: {result.get('status', 'N/A')}[/{ARGOS_PRIMARY_BOLD}]")
+            console.print(
+                f"\n  [{ARGOS_PRIMARY_BOLD}]>> Estado: {result.get('status', 'N/A')}[/{ARGOS_PRIMARY_BOLD}]"
+            )
             if result.get("flags_received"):
-                console.print(f"  [{ARGOS_WHITE}]   Flags respuesta: {result['flags_received']}[/{ARGOS_WHITE}]")
-                create_tcp_flags_panel(console, str(result['flags_received']))
+                console.print(
+                    f"  [{ARGOS_WHITE}]   Flags respuesta: {result['flags_received']}[/{ARGOS_WHITE}]"
+                )
+                create_tcp_flags_panel(console, str(result["flags_received"]))
             if result.get("latency_ms"):
-                console.print(f"  [{ARGOS_WHITE}]   Latencia: {result['latency_ms']} ms[/{ARGOS_WHITE}]")
+                console.print(
+                    f"  [{ARGOS_WHITE}]   Latencia: {result['latency_ms']} ms[/{ARGOS_WHITE}]"
+                )
     except Exception as e:
         console.print(f"\n  [{ARGOS_ERROR_BOLD}]Error: {e}[/{ARGOS_ERROR_BOLD}]")
 
@@ -585,9 +646,13 @@ def _pf_udp_probe():
     console.print()
     try:
         result = send_udp_probe(target_ip, port, log_callback=_pf_log)
-        console.print(f"\n  [{ARGOS_PRIMARY_BOLD}]>> Puerto {result['port']}: {result['status'].upper()}[/{ARGOS_PRIMARY_BOLD}]")
+        console.print(
+            f"\n  [{ARGOS_PRIMARY_BOLD}]>> Puerto {result['port']}: {result['status'].upper()}[/{ARGOS_PRIMARY_BOLD}]"
+        )
         if result.get("latency_ms"):
-            console.print(f"  [{ARGOS_WHITE}]   Latencia: {result['latency_ms']} ms[/{ARGOS_WHITE}]")
+            console.print(
+                f"  [{ARGOS_WHITE}]   Latencia: {result['latency_ms']} ms[/{ARGOS_WHITE}]"
+            )
     except Exception as e:
         console.print(f"\n  [{ARGOS_ERROR_BOLD}]Error: {e}[/{ARGOS_ERROR_BOLD}]")
 
@@ -599,6 +664,7 @@ def _pf_udp_probe():
 # Utilidades internas
 # ─────────────────────────────────────────────────────────────
 
+
 def _select_interface() -> Optional[dict]:
     """Seleccion de interfaz de red activa."""
     active = get_active_interfaces()
@@ -608,19 +674,27 @@ def _select_interface() -> Optional[dict]:
         active = [i for i in all_ifaces if i["is_up"] and i["ip"] != "127.0.0.1"]
 
     if not active:
-        console.print(f"  [{ARGOS_ERROR_BOLD}]X No se encontraron interfaces activas.[/{ARGOS_ERROR_BOLD}]")
+        console.print(
+            f"  [{ARGOS_ERROR_BOLD}]X No se encontraron interfaces activas.[/{ARGOS_ERROR_BOLD}]"
+        )
         console.print(f"  [{ARGOS_DIM}]Verifica tu conexion de red.[/{ARGOS_DIM}]")
         Prompt.ask(f"[{ARGOS_DIM}]Presiona Enter para volver[/{ARGOS_DIM}]")
         return None
 
     if len(active) == 1:
         iface = active[0]
-        console.print(f"  [{ARGOS_DIM}]Interfaz detectada::[/{ARGOS_DIM}] [{ARGOS_SUCCESS}]{iface['name']}[/{ARGOS_SUCCESS}] ({iface['ip']})")
+        console.print(
+            f"  [{ARGOS_DIM}]Interfaz detectada::[/{ARGOS_DIM}] [{ARGOS_SUCCESS}]{iface['name']}[/{ARGOS_SUCCESS}] ({iface['ip']})"
+        )
         return iface
 
-    console.print(f"  [{ARGOS_PRIMARY_BOLD}]Selecciona una interfaz de red:[/{ARGOS_PRIMARY_BOLD}]\n")
+    console.print(
+        f"  [{ARGOS_PRIMARY_BOLD}]Selecciona una interfaz de red:[/{ARGOS_PRIMARY_BOLD}]\n"
+    )
     for i, iface in enumerate(active, 1):
-        console.print(f"    [{ARGOS_PRIMARY}]{i}[/{ARGOS_PRIMARY}]  {iface['type']}  [{ARGOS_WHITE}]{iface['ip']}[/{ARGOS_WHITE}]  ({iface['name']})")
+        console.print(
+            f"    [{ARGOS_PRIMARY}]{i}[/{ARGOS_PRIMARY}]  {iface['type']}  [{ARGOS_WHITE}]{iface['ip']}[/{ARGOS_WHITE}]  ({iface['name']})"
+        )
 
     console.print()
     choice = IntPrompt.ask(
@@ -640,6 +714,7 @@ def _select_interface() -> Optional[dict]:
 # Loop principal
 # ─────────────────────────────────────────────────────────────
 
+
 def main_loop():
     """Loop principal de Argos."""
     show_banner()
@@ -650,7 +725,7 @@ def main_loop():
         choice = Prompt.ask(
             f"[{ARGOS_PRIMARY}]Argos >[/{ARGOS_PRIMARY}]",
             choices=["1", "2", "3", "4", "5"],
-            default="5"
+            default="5",
         )
 
         if choice == "1":

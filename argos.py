@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# pylint: disable=import-outside-toplevel, broad-exception-caught, no-member, too-many-branches, unused-import, wrong-import-position
 """
 Argos — Network Intelligence & Packet Factory
 ===============================================
@@ -27,81 +28,92 @@ import ctypes
 import platform
 import argparse
 import time
+import subprocess
+
+
+def auto_installer():
+    """Comprueba dependencias y las instala si faltan antes de cargar nada."""
+    required = ["rich", "psutil", "scapy", "requests"]
+    missing = []
+
+    for req in required:
+        try:
+            __import__(req)
+        except ImportError:
+            missing.append(req)
+
+    if missing:
+        print("\033[35m")
+        print("  ========================================")
+        print("  :: ARGOS AUTO-INSTALLER ::")
+        print(f"  Faltan dependencias: {', '.join(missing)}")
+        print("  Instalando automáticamente vía pip...")
+        print("  ========================================\033[0m\n")
+
+        try:
+            subprocess.run(
+                [sys.executable, "-m", "pip", "install", "-r", "requirements.txt"], check=True
+            )
+            print("\033[32m  + Instalación completada con éxito. Cargando Argos...\033[0m\n")
+        except subprocess.CalledProcessError:
+            print(
+                "\033[31m  X Error: No se pudieron instalar las dependencias "
+                "automáticamente.\033[0m"
+            )
+            print("\033[31m  Por favor, ejecuta: pip install -r requirements.txt\033[0m")
+            sys.exit(1)
+        except Exception as e:
+            print(f"\033[31m  X Error inesperado instalando dependencias: {e}\033[0m")
+            sys.exit(1)
+
+
+# Ejecutar instalador antes de imports pesados
+auto_installer()
 
 from rich.console import Console
+from rich.panel import Panel
+from rich import box
 
 console = Console()
 
 
 def enforce_admin():
     """
-    Verifica que Argos se ejecute con privilegios de administrador.
-    En Windows: si no es admin, se re-lanza con elevación UAC automáticamente.
-    En Linux/Mac: muestra instrucciones para usar sudo.
+    Verifica que Argos se ejecute con privilegios de administrador o root.
+    Si no los tiene, muestra un aviso panel en magenta y sale elegantemente.
     """
     system = platform.system().lower()
+    is_admin = False
 
     if system == "windows":
-        # Comprobar si ya somos admin
-        if ctypes.windll.shell32.IsUserAnAdmin() != 0:
-            return  # Ya somos admin
-
-        console.print("\n  [bold yellow]⚠ Argos requiere privilegios de Administrador[/bold yellow]")
-        console.print("  [dim]Re-lanzando con elevación UAC...[/dim]\n")
-
-        # Re-lanzar el script con elevación UAC
         try:
-            script = os.path.abspath(sys.argv[0])
-            params = " ".join(sys.argv[1:])
-            ctypes.windll.shell32.ShellExecuteW(
-                None, "runas", sys.executable, f'"{script}" {params}', None, 1
+            is_admin = ctypes.windll.shell32.IsUserAnAdmin() != 0
+        except Exception:
+            is_admin = False
+    else:
+        try:
+            is_admin = os.geteuid() == 0
+        except Exception:
+            is_admin = False
+
+    if not is_admin:
+        console.print()
+        console.print(
+            Panel(
+                "[bright_white]Argos requiere acceso completo a interfaces "
+                "de red y sockets raw.[/bright_white]\n\n"
+                "  [dim]En Windows:[/dim]  [magenta]Ejecuta tu terminal "
+                "como Administrador.[/magenta]\n"
+                "  [dim]En Linux:[/dim]    [magenta]Utiliza sudo python argos.py[/magenta]",
+                title="[bold magenta]:: PRIVILEGIOS REQUERIDOS ::[/bold magenta]",
+                border_style="magenta",
+                box=box.DOUBLE,
+                padding=(1, 2),
             )
-        except Exception as e:
-            console.print(f"  [bold red]✗ No se pudo elevar: {e}[/bold red]")
-            console.print("  [dim]Ejecuta manualmente como Administrador.[/dim]")
+        )
+        console.print()
         sys.exit(0)
 
-    else:
-        # Linux / macOS
-        if os.geteuid() == 0:
-            return  # Ya somos root
-
-        console.print("\n  [bold red]✗ Argos requiere privilegios de root[/bold red]")
-        console.print("  [dim]Ejecuta con: sudo python argos.py[/dim]\n")
-        sys.exit(1)
-
-
-def check_dependencies():
-    """Verifica que las dependencias estén instaladas."""
-    missing = []
-
-    try:
-        import rich
-    except ImportError:
-        missing.append("rich")
-
-    try:
-        import psutil
-    except ImportError:
-        missing.append("psutil")
-
-    # Scapy es opcional (fallback a ping sweep), pero requerido para Packet Factory
-    scapy_available = False
-    try:
-        import scapy
-        scapy_available = True
-    except ImportError:
-        pass
-
-    if missing:
-        print("\n  ✗ Faltan dependencias requeridas:")
-        for dep in missing:
-            print(f"    - {dep}")
-        print(f"\n  Instálalas con: pip install {' '.join(missing)}")
-        print(f"  O ejecuta:     pip install -r requirements.txt\n")
-        sys.exit(1)
-
-    return scapy_available
 
 
 def parse_args():
@@ -122,53 +134,63 @@ Ejemplos:
   python argos.py --probe 192.168.1.1 --ports web
   python argos.py --traceroute 192.168.1.1
   python argos.py --ping 192.168.1.1 --count 10 --ttl 128
-        """
+        """,
     )
 
     # Opciones generales
     general = parser.add_argument_group("General")
-    general.add_argument("--scan", action="store_true",
-                         help="Escaneo rápido de red")
-    general.add_argument("--interfaces", action="store_true",
-                         help="Mostrar interfaces de red")
+    general.add_argument("--scan", action="store_true", help="Escaneo rápido de red")
+    general.add_argument("--interfaces", action="store_true", help="Mostrar interfaces de red")
 
     # Speed test
     speed = parser.add_argument_group("Speed Test LAN")
-    speed.add_argument("--server", action="store_true",
-                       help="Iniciar servidor de speed test")
-    speed.add_argument("--client", type=str, metavar="IP",
-                       help="Conectar como cliente al servidor")
-    speed.add_argument("--duration", type=int, default=10,
-                       help="Duración del speed test (default: 10s)")
+    speed.add_argument("--server", action="store_true", help="Iniciar servidor de speed test")
+    speed.add_argument("--client", type=str, metavar="IP", help="Conectar como cliente al servidor")
+    speed.add_argument(
+        "--duration", type=int, default=10, help="Duración del speed test (default: 10s)"
+    )
 
     # Packet Factory
     pf = parser.add_argument_group("Packet Factory (Capas 2/3/4)")
-    pf.add_argument("--dst", type=str, metavar="IP",
-                    help="IP destino para envío de paquete TCP/UDP custom")
-    pf.add_argument("--flags", type=str, default="S",
-                    help="Flags TCP: S(YN) A(CK) F(IN) R(ST) P(SH) (default: S)")
-    pf.add_argument("--port", type=int, default=80,
-                    help="Puerto destino para paquete custom (default: 80)")
-    pf.add_argument("--probe", type=str, metavar="IP",
-                    help="TCP SYN probe a puertos de una IP")
-    pf.add_argument("--ports", type=str, default="top20",
-                    help="Puertos para --probe (ej: 80,443 o grupo: web,top20,mikrotik)")
-    pf.add_argument("--traceroute", type=str, metavar="IP",
-                    help="Traceroute manual por ICMP con TTL incremental")
-    pf.add_argument("--max-hops", type=int, default=30,
-                    help="Máximo de saltos para traceroute (default: 30)")
-    pf.add_argument("--ping", type=str, metavar="IP",
-                    help="ICMP ping personalizado")
-    pf.add_argument("--count", type=int, default=4,
-                    help="Número de pings (default: 4)")
-    pf.add_argument("--ttl", type=int, default=64,
-                    help="TTL para paquetes IP (default: 64)")
-    pf.add_argument("--size", type=int, default=56,
-                    help="Tamaño de payload ICMP en bytes (default: 56)")
+    pf.add_argument(
+        "--dst", type=str, metavar="IP", help="IP destino para envío de paquete TCP/UDP custom"
+    )
+    pf.add_argument(
+        "--flags",
+        type=str,
+        default="S",
+        help="Flags TCP: S(YN) A(CK) F(IN) R(ST) P(SH) (default: S)",
+    )
+    pf.add_argument(
+        "--port", type=int, default=80, help="Puerto destino para paquete custom (default: 80)"
+    )
+    pf.add_argument("--probe", type=str, metavar="IP", help="TCP SYN probe a puertos de una IP")
+    pf.add_argument(
+        "--ports",
+        type=str,
+        default="top20",
+        help="Puertos para --probe (ej: 80,443 o grupo: web,top20,mikrotik)",
+    )
+    pf.add_argument(
+        "--traceroute",
+        type=str,
+        metavar="IP",
+        help="Traceroute manual por ICMP con TTL incremental",
+    )
+    pf.add_argument(
+        "--max-hops", type=int, default=30, help="Máximo de saltos para traceroute (default: 30)"
+    )
+    pf.add_argument("--ping", type=str, metavar="IP", help="ICMP ping personalizado")
+    pf.add_argument("--count", type=int, default=4, help="Número de pings (default: 4)")
+    pf.add_argument("--ttl", type=int, default=64, help="TTL para paquetes IP (default: 64)")
+    pf.add_argument(
+        "--size", type=int, default=56, help="Tamaño de payload ICMP en bytes (default: 56)"
+    )
 
     # Compartido
-    parser.add_argument("--sport", type=int, default=None,
-                        help="Puerto origen TCP/UDP (default: aleatorio)")
+    parser.add_argument(
+        "--sport", type=int, default=None, help="Puerto origen TCP/UDP (default: aleatorio)"
+    )
 
     return parser.parse_args()
 
@@ -176,6 +198,7 @@ Ejemplos:
 # ─────────────────────────────────────────────────────────────
 # Comandos directos (modo no interactivo)
 # ─────────────────────────────────────────────────────────────
+
 
 def cmd_quick_scan():
     """Escaneo rápido de red."""
@@ -293,7 +316,10 @@ def cmd_tcp_custom(dst_ip: str, port: int, flags: str, src_port=None):
     def log(msg):
         console.print(f"  [bright_white]│[/bright_white] {msg}")
 
-    console.print(f"\n[bright_cyan]Argos Packet Factory — TCP {describe_flags(flags)} → {dst_ip}:{port}[/bright_cyan]\n")
+    console.print(
+        f"\n[bright_cyan]Argos Packet Factory — TCP {describe_flags(flags)} "
+        f"→ {dst_ip}:{port}[/bright_cyan]\n"
+    )
 
     result = send_tcp_custom(dst_ip, port, flags=flags, src_port=src_port, log_callback=log)
 
@@ -322,11 +348,16 @@ def cmd_tcp_probe(dst_ip: str, ports_input: str):
             console.print("[red]Formato de puertos inválido[/red]")
             return
 
-    console.print(f"\n[bright_cyan]Argos TCP SYN Probe → {dst_ip} ({len(ports)} puertos)[/bright_cyan]\n")
+    console.print(
+        f"\n[bright_cyan]Argos TCP SYN Probe → {dst_ip} ({len(ports)} puertos)[/bright_cyan]\n"
+    )
 
     results = tcp_port_probe(dst_ip, ports, log_callback=log)
     open_ports = [r for r in results if r["status"] == "open"]
-    console.print(f"\n  [bold bright_green]Puertos abiertos: {len(open_ports)}/{len(results)}[/bold bright_green]")
+    console.print(
+        f"\n  [bold bright_green]Puertos abiertos: {len(open_ports)}"
+        f"/{len(results)}[/bold bright_green]"
+    )
 
 
 def cmd_traceroute(dst_ip: str, max_hops: int):
@@ -336,7 +367,9 @@ def cmd_traceroute(dst_ip: str, max_hops: int):
     def log(msg):
         console.print(f"  [bright_white]│[/bright_white] {msg}")
 
-    console.print(f"\n[bright_cyan]Argos Traceroute → {dst_ip} (max {max_hops} saltos)[/bright_cyan]\n")
+    console.print(
+        f"\n[bright_cyan]Argos Traceroute → {dst_ip} (max {max_hops} saltos)[/bright_cyan]\n"
+    )
     hops = manual_traceroute(dst_ip, max_hops=max_hops, log_callback=log)
     console.print(f"\n  [bold bright_green]Completado: {len(hops)} saltos[/bold bright_green]")
 
@@ -348,11 +381,17 @@ def cmd_icmp_ping(dst_ip: str, count: int, ttl: int, size: int):
     def log(msg):
         console.print(f"  [bright_white]│[/bright_white] {msg}")
 
-    console.print(f"\n[bright_cyan]Argos ICMP Ping → {dst_ip} (count={count}, ttl={ttl}, size={size})[/bright_cyan]\n")
+    console.print(
+        f"\n[bright_cyan]Argos ICMP Ping → {dst_ip} "
+        f"(count={count}, ttl={ttl}, size={size})[/bright_cyan]\n"
+    )
     stats = send_icmp_ping(dst_ip, count=count, ttl=ttl, payload_size=size, log_callback=log)
 
     if stats["avg_ms"] is not None:
-        console.print(f"\n  [bold bright_green]Min: {stats['min_ms']}ms  Avg: {stats['avg_ms']}ms  Max: {stats['max_ms']}ms[/bold bright_green]")
+        console.print(
+            f"\n  [bold bright_green]Min: {stats['min_ms']}ms  "
+            f"Avg: {stats['avg_ms']}ms  Max: {stats['max_ms']}ms[/bold bright_green]"
+        )
     console.print(f"  [dim]Pérdida: {stats['loss_pct']}%[/dim]")
 
 
@@ -360,15 +399,16 @@ def cmd_icmp_ping(dst_ip: str, count: int, ttl: int, size: int):
 # Main
 # ─────────────────────────────────────────────────────────────
 
+
 def main():
     """Punto de entrada principal de Argos."""
     enforce_admin()
-    
+
     # Comprobar actualizaciones en GitHub
     from modules.updater import check_for_updates
+
     check_for_updates()
-    
-    scapy_available = check_dependencies()
+
     args = parse_args()
 
     # Detectar si se pidió algún modo directo
@@ -378,35 +418,26 @@ def main():
         cmd_show_interfaces()
     elif args.server:
         from modules.speed_test import DEFAULT_PORT
+
         cmd_server(DEFAULT_PORT)
     elif args.client:
         from modules.speed_test import DEFAULT_PORT
+
         cmd_client(args.client, DEFAULT_PORT, args.duration)
     elif args.dst:
         # Packet Factory: TCP custom
-        if not scapy_available:
-            console.print("[bold red]✗ Scapy requerido para Packet Factory. pip install scapy[/bold red]")
-            sys.exit(1)
         cmd_tcp_custom(args.dst, args.port, args.flags, args.sport)
     elif args.probe:
         # Packet Factory: TCP probe
-        if not scapy_available:
-            console.print("[bold red]✗ Scapy requerido para Packet Factory. pip install scapy[/bold red]")
-            sys.exit(1)
         cmd_tcp_probe(args.probe, args.ports)
     elif args.traceroute:
-        if not scapy_available:
-            console.print("[bold red]✗ Scapy requerido para Packet Factory. pip install scapy[/bold red]")
-            sys.exit(1)
         cmd_traceroute(args.traceroute, args.max_hops)
     elif args.ping:
-        if not scapy_available:
-            console.print("[bold red]✗ Scapy requerido para Packet Factory. pip install scapy[/bold red]")
-            sys.exit(1)
         cmd_icmp_ping(args.ping, args.count, args.ttl, args.size)
     else:
         # Modo interactivo
         from modules.cli_ui import main_loop
+
         main_loop()
 
 

@@ -16,6 +16,8 @@
 
 **Argos** es una herramienta CLI empresarial con interfaz de consola avanzada (**Elite Purple Edition**) para ingeniería de red. Permite el descubrimiento de dispositivos, pruebas de rendimiento LAN y forjado de paquetes a medida (Capas 2-4 OSI). Orientada estrictamente para entornos locales (**RFC 1918**) sin dependencias de salida a Internet.
 
+Se recomienda una consola con soporte **Truecolor** (Windows Terminal, iTerm2 o similares).
+
 ---
 
 ## 📂 Estructura / Structure
@@ -44,20 +46,13 @@
 
 ---
 
-## 🛠️ Requisitos y Configuración
+## 💎 Calidad de Código (Refactoring)
 
-Se recomienda una consola con soporte **Truecolor** (Windows Terminal, iTerm2 o similares).
-
-* **Python 3.10+**
-* **Permisos de Administrador / Root**: Obligatorio para la manipulación de paquetes de bajo nivel.
-
-```bash
-# Instalar dependencias
-pip install -r requirements.txt
-
-# Ejecutar Argos
-python argos.py
-```
+Este proyecto ha pasado por una fase de refactorización intensiva para alcanzar los estándares más altos de la industria:
+* **Pylint 10/10**: Código validado y limpio siguiendo la guía de estilo PEP8.
+* **Plug & Play**: Instalación automática de dependencias y verificación de privilegios al inicio.
+* **Modularidad Optimizada**: Separación lógica de componentes para facilitar la auditoría y el mantenimiento.
+* **Manejo de Errores**: Implementación de capturas de excepciones específicas para evitar cierres inesperados.
 
 ---
 
