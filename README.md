@@ -1,64 +1,74 @@
-# Argos — Network Intelligence & Packet Factory
-   █████╗ ██████╗  ██████╗  ██████╗ ███████╗
+# 🛡️ Argos — Network Intelligence & Packet Factory
+
+![Python Version](https://img.shields.io/badge/python-3.10%2B-blue?logo=python&logoColor=white)
+![License](https://img.shields.io/badge/license-MIT-magenta)
+![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-lightgrey)
+![Architecture](https://img.shields.io/badge/Architecture-Modular-blueviolet)
+
+```text
+  █████╗ ██████╗  ██████╗  ██████╗ ███████╗
   ██╔══██╗██╔══██╗██╔════╝ ██╔═══██╗██╔════╝
   ███████║██████╔╝██║  ███╗██║   ██║███████╗
   ██╔══██║██╔══██╗██║   ██║██║   ██║╚════██║
   ██║  ██║██║  ██║╚██████╔╝╚██████╔╝███████║
   ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝  ╚═════╝ ╚══════╝
-  
-Herramienta CLI empresarial e interfaz de consola avanzada (Elite Purple Edition) para ingeniería de red, descubrimiento de dispositivos, pruebas de rendimiento LAN y forjado de paquetes a medida (Packet Factory OSI L2-4). Orientada para entornos locales estrictos (RFC 1918) sin dependencias de salida a Internet.
+```
 
-## Estructura / Structure
+**Argos** es una herramienta CLI empresarial con interfaz de consola avanzada (**Elite Purple Edition**) para ingeniería de red. Permite el descubrimiento de dispositivos, pruebas de rendimiento LAN y forjado de paquetes a medida (Capas 2-4 OSI). Orientada estrictamente para entornos locales (**RFC 1918**) sin dependencias de salida a Internet.
 
-📂 **Organización del Proyecto**
+---
+
+## 📂 Estructura / Structure
 
 * **`argos.py`**: El núcleo que arranca la herramienta. (Main entry point).
 * **`modules/`**:
-  * **`cli_ui.py`**: Interfaz visual en Morado/Magenta con la librería Rich. (UI logic).
-  * **`discovery.py`**: Escaneo de red y detección de dispositivos. (Network discovery).
-  * **`packet_factory.py`**: Creación de paquetes a medida (Capas 2-4). (Packet crafting).
-  * **`net_utils.py`**: Herramientas para validar IPs y tarjetas de red. (Network helpers).
-  * **`theme.py`**: Sistema central de paleta de colores y componentes visuales. (Theme system).
-  * **`speed_test.py`**: Cliente/Servidor TCP para medir el throughput. (LAN Speed test).
-  * **`report.py`**: Motor de formateo visual para tablas y paneles de reporting. (Rich reporting).
-* **`requirements.txt`**: Librerías externas necesarias. (Dependencies).
-* **`.agent/skills/argos-identity/SKILL.md`**: Definición técnica de identidad y directrices. (Agent skill definition).
+    * **`cli_ui.py`**: Interfaz visual en Morado/Magenta con la librería Rich. (UI logic).
+    * **`discovery.py`**: Escaneo de red y detección de dispositivos. (Network discovery).
+    * **`packet_factory.py`**: Creación de paquetes a medida. (Packet crafting).
+    * **`speed_test.py`**: Cliente/Servidor TCP para medir el throughput. (LAN Speed test).
+    * **`updater.py`**: Gestor de actualizaciones y parches desde GitHub. (Update manager).
+    * **`net_utils.py`**: Herramientas para validar IPs y tarjetas de red. (Network helpers).
+* **`requirements.txt`**: Librerías externas necesarias (Scapy, Rich, Psutil). (Dependencies).
 
-## Características (Features)
+---
 
-1. **Discovery**: Escaneo local usando Scapy (ARP) o fallback automático a Ping Sweep, detectando MAC, Hostname y fabricante (Vendor).
-2. **Speed Test**: Interfaz gráfica nativa en terminal para levantar un Servidor o conectar como Cliente y saturar artificialmente la transferencia TCP para calcular latencia (RTT) y velocidad bruta (Mbps / MB/s).
-3. **Packet Factory**: Módulo de privilegios bajos nivel:
-   * **Capa 2**: Tramas Ethernet crudas, peticiones ARP dirigidas.
-   * **Capa 3**: Manipulación IP, ping ICMP, traceroutes configurando TTL incremental.
-   * **Capa 4**: Envío TCP manual formulando flags específicas (SYN, ACK, PSH, RST, FIN) para tests, y sondeo TCP/UDP de capa de transporte.
+## 🚀 Características (Features)
 
-## Requisitos y Configuración
+1.  **Discovery**: Escaneo local usando **Scapy (ARP)** con detección de MAC, Hostname y fabricante (Vendor).
+2.  **Speed Test**: Interfaz dual (Servidor/Cliente) para medir velocidad bruta (**Mbps**), latencia y Jitter en la red local.
+3.  **Packet Factory**: Manipulación de bajo nivel:
+    * **Capa 2**: Tramas Ethernet y peticiones ARP.
+    * **Capa 3**: Control de IP y TTL incremental (Traceroute).
+    * **Capa 4**: Forjado manual de **Flags TCP** (SYN, ACK, RST, FIN) para auditoría de Firewalls.
+4.  **Auto-Update**: Verificación de versiones contra el repositorio oficial y aplicación de parches en caliente.
 
-El framework emplea utilidades de terminal modernas, por lo cual se recomienda una consola que soporte renderizado de color estilo Truecolor (PowerShell moderno o Windows Terminal, Gnome Terminal, iTerm2, etc).
+---
 
-Además es estrictamente necesario:
-- **Python 3.10+** instalado y en PATH.
-- **Scapy** funcional y, muy importante, **permisos de Administrador / Root** para operar la fábrica de paquetes. En Windows Argos lo solicitará (UAC prompt) automáticamente; en sistemas basados en UNIX requiere correr bajo entorno `sudo`.
+## 🛠️ Requisitos y Configuración
+
+Se recomienda una consola con soporte **Truecolor** (Windows Terminal, iTerm2 o similares).
+
+* **Python 3.10+**
+* **Permisos de Administrador / Root**: Obligatorio para la manipulación de paquetes de bajo nivel.
 
 ```bash
-# Instalar dependencias requeridas
+# Instalar dependencias
 pip install -r requirements.txt
 
-# Iniciar la interfaz interactiva
+# Ejecutar Argos
 python argos.py
 ```
 
-## Uso Rápido (Expert CLI Arguments)
+---
 
-Admite paso de parámetros de control directo para los usuarios avanzados que deseen bypassear la interfaz de menú e integrarlo en sus scripts. Todos los ejemplos devuelven reporting altamente diseñado.
+## 🧠 Metodología (AI-Assisted)
 
-```powershell
-python argos.py --interfaces
-python argos.py --scan
+Este proyecto ha sido diseñado bajo una arquitectura de **Desarrollo Asistido por IA**, utilizando modelos de lenguaje avanzados para la optimización de lógica de red y diseño de UX en consola. Mi rol como desarrollador ha sido la arquitectura del sistema, supervisión técnica y validación de seguridad.
 
-# Pruebas manuales TCP a nivel paquete
-python argos.py --dst 192.168.1.1 --flags S --port 443
-python argos.py --probe 192.168.1.1 --ports web
-python argos.py --traceroute 192.168.1.1
-```
+---
+
+## ⚠️ Aviso Legal / License
+
+Este software es para fines educativos y auditorías autorizadas. El uso en redes ajenas sin permiso es responsabilidad del usuario.
+
+**Licencia: MIT** - Siéntete libre de usar, modificar y mejorar este proyecto para tu propio porfolio.

@@ -363,6 +363,11 @@ def cmd_icmp_ping(dst_ip: str, count: int, ttl: int, size: int):
 def main():
     """Punto de entrada principal de Argos."""
     enforce_admin()
+    
+    # Comprobar actualizaciones en GitHub
+    from modules.updater import check_for_updates
+    check_for_updates()
+    
     scapy_available = check_dependencies()
     args = parse_args()
 
