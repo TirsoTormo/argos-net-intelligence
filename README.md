@@ -66,9 +66,15 @@ Argos está diseñado para ser ejecutado con un solo comando:
 
 ---
 
-## 🧠 Metodología (AI-Assisted)
+## 🧠 Metodología: Arquitectura Humana + Implementación Asistida
 
-Este proyecto ha sido diseñado bajo una arquitectura de **Desarrollo Asistido por IA**, utilizando modelos de lenguaje avanzados para la optimización de lógica de red y diseño de UX en consola. Mi rol como desarrollador ha sido la arquitectura del sistema, supervisión técnica y validación de seguridad.
+Este proyecto no es fruto del azar, sino de una **dirección técnica humana** aplicada al desarrollo moderno:
+
+* **Rol de Arquitecto (Tirso Tormo)**: Definición del Blueprint técnico, selección del stack de librerías (Scapy, Rich, Psutil), diseño de la lógica de red y estructuración modular del sistema.
+* **Kit de Herramientas**: Elección de herramientas específicas para resolver problemas reales de administración de sistemas (ASIR).
+* **Implementación Asistida por IA**: Uso de modelos de lenguaje avanzados para la generación de código siguiendo estrictas especificaciones arquitectónicas y validación de estándares de calidad (Pylint 10/10).
+
+**Enfoque**: Supervisión técnica total. La IA construye, pero el humano diseña y valida.
 
 ---
 
