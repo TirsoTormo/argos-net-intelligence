@@ -8,14 +8,14 @@ Herramienta CLI empresarial para ingeniería de red:
 - Fábrica de paquetes personalizados (Capas 2/3/4 del modelo OSI)
 
 Uso:
-    python netscanner.py                    → Menú interactivo
-    python netscanner.py --scan             → Escaneo rápido de red
-    python netscanner.py --interfaces       → Mostrar interfaces
-    python netscanner.py --server           → Servidor de speed test
-    python netscanner.py --client <IP>      → Cliente de speed test
-    python netscanner.py --dst <IP> --flags S --port 443   → Enviar TCP custom
-    python netscanner.py --probe <IP> --ports web          → TCP port probe
-    python netscanner.py --traceroute <IP>  → Traceroute manual
+    python argos.py                    → Menú interactivo
+    python argos.py --scan             → Escaneo rápido de red
+    python argos.py --interfaces       → Mostrar interfaces
+    python argos.py --server           → Servidor de speed test
+    python argos.py --client <IP>      → Cliente de speed test
+    python argos.py --dst <IP> --flags S --port 443   → Enviar TCP custom
+    python argos.py --probe <IP> --ports web          → TCP port probe
+    python argos.py --traceroute <IP>  → Traceroute manual
 
 Argos — Enterprise-Grade Network Tool v1.0
 Requiere privilegios de administrador para operaciones de Capa 2 y TCP flags.
@@ -67,7 +67,7 @@ def enforce_admin():
             return  # Ya somos root
 
         console.print("\n  [bold red]✗ Argos requiere privilegios de root[/bold red]")
-        console.print("  [dim]Ejecuta con: sudo python netscanner.py[/dim]\n")
+        console.print("  [dim]Ejecuta con: sudo python argos.py[/dim]\n")
         sys.exit(1)
 
 
@@ -111,17 +111,17 @@ def parse_args():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Ejemplos:
-  python netscanner.py                          Menú interactivo
-  python netscanner.py --scan                   Escaneo rápido de red
-  python netscanner.py --server                 Servidor speed test
-  python netscanner.py --client 192.168.1.10    Cliente speed test
+  python argos.py                          Menú interactivo
+  python argos.py --scan                   Escaneo rápido de red
+  python argos.py --server                 Servidor speed test
+  python argos.py --client 192.168.1.10    Cliente speed test
 
   Packet Factory (requiere admin + Scapy):
-  python netscanner.py --dst 192.168.1.1 --flags S --port 443
-  python netscanner.py --probe 192.168.1.1 --ports 80,443,22
-  python netscanner.py --probe 192.168.1.1 --ports web
-  python netscanner.py --traceroute 192.168.1.1
-  python netscanner.py --ping 192.168.1.1 --count 10 --ttl 128
+  python argos.py --dst 192.168.1.1 --flags S --port 443
+  python argos.py --probe 192.168.1.1 --ports 80,443,22
+  python argos.py --probe 192.168.1.1 --ports web
+  python argos.py --traceroute 192.168.1.1
+  python argos.py --ping 192.168.1.1 --count 10 --ttl 128
         """
     )
 
