@@ -16,7 +16,7 @@ from rich import box
 
 # Importar colores corporativos Elite Purple
 try:
-    from modules.theme import (
+    from ui.theme import (
         ARGOS_PRIMARY_BOLD,
         ARGOS_PRIMARY,
         ARGOS_WHITE,

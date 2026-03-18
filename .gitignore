@@ -211,4 +211,5 @@ __marimo__/
 .agent/
 .skills/
 *.md.bak
+REPORT_AUDIT.md
 implementation_plan.md

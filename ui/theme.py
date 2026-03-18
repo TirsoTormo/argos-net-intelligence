@@ -99,7 +99,7 @@ def create_status_bar(console: Console, iface: Optional[Dict] = None, is_admin: 
     )
 
     if iface:
-        from modules.net_utils import get_gateway_ip, get_network_cidr
+        from core.net_utils import get_gateway_ip, get_network_cidr
 
         gateway = get_gateway_ip(iface["ip"], iface["mask"])
         cidr = get_network_cidr(iface["ip"], iface["mask"])
@@ -140,7 +140,7 @@ def create_context_panel(console: Console, module_name: str, iface: Optional[Dic
     Sin emojis. Texto puro con separadores.
     """
     if iface:
-        from modules.net_utils import get_gateway_ip, get_network_cidr
+        from core.net_utils import get_gateway_ip, get_network_cidr
 
         gateway = get_gateway_ip(iface["ip"], iface["mask"])
         cidr = get_network_cidr(iface["ip"], iface["mask"])

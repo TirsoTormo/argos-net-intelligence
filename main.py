@@ -104,17 +104,19 @@ def enforce_admin():
                 "de red y sockets raw.[/bright_white]\n\n"
                 "  [dim]En Windows:[/dim]  [magenta]Ejecuta tu terminal "
                 "como Administrador.[/magenta]\n"
-                "  [dim]En Linux:[/dim]    [magenta]Utiliza sudo python argos.py[/magenta]",
+                "  [dim]En Linux:[/dim]    [magenta]Utiliza sudo python main.py[/magenta]",
                 title="[bold magenta]:: PRIVILEGIOS REQUERIDOS ::[/bold magenta]",
                 border_style="magenta",
                 box=box.DOUBLE,
                 padding=(1, 2),
             )
         )
+        console.print(
+            "  [yellow]ADVERTENCIA: Iniciando sin privilegios de administrador. "
+            "Algunas funciones estaran limitadas (ej. ARP Scan capado a Ping).[/yellow]"
+        )
         console.print()
         sys.exit(0)
-
-
 
 def parse_args():
     """Parsea argumentos de línea de comandos de Argos."""
@@ -123,17 +125,17 @@ def parse_args():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Ejemplos:
-  python argos.py                          Menú interactivo
-  python argos.py --scan                   Escaneo rápido de red
-  python argos.py --server                 Servidor speed test
-  python argos.py --client 192.168.1.10    Cliente speed test
+  python main.py                          Menú interactivo
+  python main.py --scan                   Escaneo rápido de red
+  python main.py --server                 Servidor speed test
+  python main.py --client 192.168.1.10    Cliente speed test
 
   Packet Factory (requiere admin + Scapy):
-  python argos.py --dst 192.168.1.1 --flags S --port 443
-  python argos.py --probe 192.168.1.1 --ports 80,443,22
-  python argos.py --probe 192.168.1.1 --ports web
-  python argos.py --traceroute 192.168.1.1
-  python argos.py --ping 192.168.1.1 --count 10 --ttl 128
+  python main.py --dst 192.168.1.1 --flags S --port 443
+  python main.py --probe 192.168.1.1 --ports 80,443,22
+  python main.py --probe 192.168.1.1 --ports web
+  python main.py --traceroute 192.168.1.1
+  python main.py --ping 192.168.1.1 --count 10 --ttl 128
         """,
     )
 
@@ -141,6 +143,9 @@ Ejemplos:
     general = parser.add_argument_group("General")
     general.add_argument("--scan", action="store_true", help="Escaneo rápido de red")
     general.add_argument("--interfaces", action="store_true", help="Mostrar interfaces de red")
+    general.add_argument("--export-json", type=str, metavar="FILE", help="Exportar resultados a JSON")
+    general.add_argument("--export-md", type=str, metavar="FILE", help="Exportar resultados a Markdown")
+    general.add_argument("--export-csv", type=str, metavar="FILE", help="Exportar resultados a CSV")
 
     # Speed test
     speed = parser.add_argument_group("Speed Test LAN")
@@ -200,11 +205,11 @@ Ejemplos:
 # ─────────────────────────────────────────────────────────────
 
 
-def cmd_quick_scan():
+def cmd_quick_scan(args=None):
     """Escaneo rápido de red."""
-    from modules.net_utils import get_active_interfaces, get_network_cidr
-    from modules.discovery import full_scan
-    from modules.report import create_device_table, create_scan_summary
+    from core.net_utils import get_active_interfaces, get_network_cidr
+    from core.discovery import full_scan
+    from ui.report import display_animated_device_table, create_scan_summary
 
     active = get_active_interfaces()
     if not active:
@@ -220,20 +225,44 @@ def cmd_quick_scan():
 
     start = time.perf_counter()
     devices, method = full_scan(ip, mask)
+
+    if devices:
+        from core.vendor_manager import VendorManager
+        console.print("[dim]Optimizando: Identificando Fabricantes (Concurrencia Activa)...[/dim]")
+        vm = VendorManager()
+        vm.resolve_vendors_concurrently(devices)
+
     elapsed = time.perf_counter() - start
 
     if devices:
-        console.print(create_device_table(devices, method, ip))
+        display_animated_device_table(console, devices, method, ip)
         console.print()
         console.print(create_scan_summary(devices, method, elapsed, cidr))
+
+        from storage.database import db
+        if db.save_scan(cidr, method, elapsed, devices):
+            console.print("[dim green]Escaneo guardado en base de datos local (argos_audit.db).[/dim green]")
+
+        if args:
+            from storage.exporter import ReportExporter
+            if args.export_json:
+                if ReportExporter.to_json(args.export_json, devices, cidr, method, elapsed):
+                    console.print(f"[green]Reporte JSON guardado en: {args.export_json}[/green]")
+            if args.export_md:
+                if ReportExporter.to_markdown(args.export_md, devices, cidr, method, elapsed):
+                    console.print(f"[green]Reporte MD guardado en: {args.export_md}[/green]")
+            if args.export_csv:
+                if ReportExporter.to_csv(args.export_csv, devices):
+                    console.print(f"[green]Reporte CSV guardado en: {args.export_csv}[/green]")
+
     else:
         console.print("[yellow]No se encontraron dispositivos.[/yellow]")
 
 
 def cmd_show_interfaces():
     """Muestra interfaces de red."""
-    from modules.net_utils import get_local_interfaces
-    from modules.report import create_interface_table
+    from core.net_utils import get_local_interfaces
+    from ui.report import create_interface_table
 
     interfaces = get_local_interfaces()
     if interfaces:
@@ -245,9 +274,9 @@ def cmd_show_interfaces():
 
 def cmd_server(port: int = 45678):
     """Inicia servidor de speed test."""
-    from modules.net_utils import get_active_interfaces
-    from modules.speed_test import SpeedTestServer
-    from modules.report import create_speed_result_panel
+    from core.net_utils import get_active_interfaces
+    from core.speed_test import SpeedTestServer
+    from ui.report import create_speed_result_panel
 
     active = get_active_interfaces()
     if active:
@@ -286,9 +315,9 @@ def cmd_server(port: int = 45678):
 
 def cmd_client(server_ip: str, port: int, duration: int):
     """Ejecuta cliente de speed test."""
-    from modules.net_utils import is_private_ip
-    from modules.speed_test import SpeedTestClient
-    from modules.report import create_speed_result_panel
+    from core.net_utils import is_private_ip
+    from core.speed_test import SpeedTestClient
+    from ui.report import create_speed_result_panel
 
     if not is_private_ip(server_ip):
         console.print(f"[bold red]✗ {server_ip} no es una IP privada. Abortado.[/bold red]")
@@ -311,7 +340,7 @@ def cmd_client(server_ip: str, port: int, duration: int):
 
 def cmd_tcp_custom(dst_ip: str, port: int, flags: str, src_port=None):
     """Envía un segmento TCP personalizado."""
-    from modules.packet_factory import send_tcp_custom, describe_flags
+    from core.packet_factory import send_tcp_custom, describe_flags
 
     def log(msg):
         console.print(f"  [bright_white]│[/bright_white] {msg}")
@@ -333,7 +362,7 @@ def cmd_tcp_custom(dst_ip: str, port: int, flags: str, src_port=None):
 
 def cmd_tcp_probe(dst_ip: str, ports_input: str):
     """TCP SYN probe a puertos."""
-    from modules.packet_factory import tcp_port_probe, get_common_port_groups
+    from core.packet_factory import tcp_port_probe, get_common_port_groups
 
     def log(msg):
         console.print(f"  [bright_white]│[/bright_white] {msg}")
@@ -362,7 +391,7 @@ def cmd_tcp_probe(dst_ip: str, ports_input: str):
 
 def cmd_traceroute(dst_ip: str, max_hops: int):
     """Traceroute manual."""
-    from modules.packet_factory import manual_traceroute
+    from core.packet_factory import manual_traceroute
 
     def log(msg):
         console.print(f"  [bright_white]│[/bright_white] {msg}")
@@ -376,7 +405,7 @@ def cmd_traceroute(dst_ip: str, max_hops: int):
 
 def cmd_icmp_ping(dst_ip: str, count: int, ttl: int, size: int):
     """ICMP ping personalizado."""
-    from modules.packet_factory import send_icmp_ping
+    from core.packet_factory import send_icmp_ping
 
     def log(msg):
         console.print(f"  [bright_white]│[/bright_white] {msg}")
@@ -405,7 +434,7 @@ def main():
     enforce_admin()
 
     # Comprobar actualizaciones en GitHub
-    from modules.updater import check_for_updates
+    from core.updater import check_for_updates
 
     check_for_updates()
 
@@ -413,15 +442,15 @@ def main():
 
     # Detectar si se pidió algún modo directo
     if args.scan:
-        cmd_quick_scan()
+        cmd_quick_scan(args)
     elif args.interfaces:
         cmd_show_interfaces()
     elif args.server:
-        from modules.speed_test import DEFAULT_PORT
+        from core.speed_test import DEFAULT_PORT
 
         cmd_server(DEFAULT_PORT)
     elif args.client:
-        from modules.speed_test import DEFAULT_PORT
+        from core.speed_test import DEFAULT_PORT
 
         cmd_client(args.client, DEFAULT_PORT, args.duration)
     elif args.dst:
@@ -436,7 +465,7 @@ def main():
         cmd_icmp_ping(args.ping, args.count, args.ttl, args.size)
     else:
         # Modo interactivo
-        from modules.cli_ui import main_loop
+        from ui.cli_ui import main_loop
 
         main_loop()
 

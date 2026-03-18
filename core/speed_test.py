@@ -15,7 +15,7 @@ import threading
 import json
 from typing import Dict, Optional, Callable
 
-from modules.net_utils import is_private_ip
+from core.net_utils import is_private_ip
 
 # Protocolo de comunicación
 HEADER_SIZE = 8  # 8 bytes para el header (tamaño del mensaje)

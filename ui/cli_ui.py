@@ -20,16 +20,17 @@ from rich.table import Table
 from rich.live import Live
 from rich import box
 
-from modules.net_utils import (
+from core.net_utils import (
     get_local_interfaces,
     get_active_interfaces,
     get_network_cidr,
     is_private_ip,
 )
-from modules.discovery import full_scan
-from modules.speed_test import SpeedTestServer, SpeedTestClient, DEFAULT_PORT
-from modules.report import (
+from core.discovery import full_scan
+from core.speed_test import SpeedTestServer, SpeedTestClient, DEFAULT_PORT
+from ui.report import (
     create_device_table,
+    display_animated_device_table,
     create_interface_table,
     create_speed_result_panel,
     create_scan_summary,
@@ -37,7 +38,7 @@ from modules.report import (
     create_traceroute_table,
     create_ping_summary,
 )
-from modules.theme import (
+from ui.theme import (
     ARGOS_PRIMARY,
     ARGOS_PRIMARY_BOLD,
     ARGOS_PRIMARY_DIM,
@@ -128,7 +129,8 @@ def show_main_menu():
     menu.add_row("2", "TEST DE VELOCIDAD -- Medir rendimiento entre equipos")
     menu.add_row("3", "INTERFACES DE RED -- Informacion de adaptadores locales")
     menu.add_row("4", "PACKET FACTORY -- Forjar paquetes (Capas 2/3/4)")
-    menu.add_row("5", "SALIR")
+    menu.add_row("5", "AUDITAR SEGURIDAD -- Tareas pasivas y activas avanzadas")
+    menu.add_row("6", "SALIR")
 
     console.print()
     console.print(menu)
@@ -183,15 +185,71 @@ def menu_scan_network():
             progress.update(task, completed=int(pct * 100), description=msg)
 
         devices, scan_method = full_scan(ip, mask, progress_callback=update_progress)
-        progress.update(task, completed=100, description="Escaneo completado")
+        progress.update(task, completed=100, description="Escaneo de red completado")
+
+    if devices:
+        from core.vendor_manager import VendorManager
+        
+        with Progress(
+            SpinnerColumn(style=ARGOS_PRIMARY),
+            TextColumn(f"[{ARGOS_WHITE}]" + "{task.description}" + f"[/{ARGOS_WHITE}]"),
+            BarColumn(bar_width=30, style=ARGOS_PRIMARY_DIM, complete_style=ARGOS_WHITE),
+            TextColumn(f"[{ARGOS_PRIMARY}]" + "{task.percentage:>3.0f}%" + f"[/{ARGOS_PRIMARY}]"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Identificando fabricantes...", total=100)
+
+            def vendor_progress(msg, pct):
+                progress.update(task, completed=int(pct * 100), description=msg)
+
+            vm = VendorManager()
+            vm.resolve_vendors_concurrently(devices, progress_callback=vendor_progress)
+            progress.update(task, completed=100, description="Procesamiento de MACs completado")
 
     elapsed = time.perf_counter() - start_time
 
     if devices:
         console.print()
-        console.print(create_device_table(devices, scan_method, ip))
+        display_animated_device_table(console, devices, scan_method, ip)
         console.print()
         console.print(create_scan_summary(devices, scan_method, elapsed, cidr))
+
+        from storage.database import db
+        if db.save_scan(cidr, scan_method, elapsed, devices):
+            console.print(f"  [{ARGOS_DIM}]>> Resultados archivados en base de datos local (argos_audit.db)[/{ARGOS_DIM}]")
+
+        console.print()
+        export_choice = Prompt.ask(
+            f"  [{ARGOS_PRIMARY}]¿Desea exportar los resultados?[/{ARGOS_PRIMARY}]",
+            choices=["s", "n"],
+            default="n",
+        )
+        if export_choice.lower() == "s":
+            format_choice = Prompt.ask(
+                f"  [{ARGOS_PRIMARY}]Formato[/{ARGOS_PRIMARY}]",
+                choices=["json", "md", "csv"],
+                default="json",
+            )
+            filename_default = f"argos_scan_{int(time.time())}.{format_choice}"
+            filepath = Prompt.ask(
+                f"  [{ARGOS_PRIMARY}]Archivo[/{ARGOS_PRIMARY}]",
+                default=filename_default,
+            )
+            
+            from storage.exporter import ReportExporter
+            success = False
+            if format_choice == "json":
+                success = ReportExporter.to_json(filepath, devices, cidr, scan_method, elapsed)
+            elif format_choice == "md":
+                success = ReportExporter.to_markdown(filepath, devices, cidr, scan_method, elapsed)
+            elif format_choice == "csv":
+                success = ReportExporter.to_csv(filepath, devices)
+                
+            if success:
+                console.print(f"  [{ARGOS_SUCCESS_BOLD}]>> Resultados exportados a {filepath}[/{ARGOS_SUCCESS_BOLD}]")
+            else:
+                console.print(f"  [{ARGOS_ERROR_BOLD}]X Error al exportar resultados[/{ARGOS_ERROR_BOLD}]")
+
     else:
         console.print(f"\n  [{ARGOS_WARN}]No se encontraron dispositivos en la red.[/{ARGOS_WARN}]")
         console.print(
@@ -299,7 +357,7 @@ def _run_client_mode():
 
     client = SpeedTestClient(status_callback=client_log)
 
-    from modules.speed_test import quick_latency_test
+    from core.speed_test import quick_latency_test
 
     latency = quick_latency_test(server_ip, count=3)
     rtt_ms = latency["avg_ms"] if latency else None
@@ -432,7 +490,7 @@ def _pf_log(msg):
 
 def _pf_arp_request():
     """ARP Request interactivo."""
-    from modules.packet_factory import send_arp_request
+    from core.packet_factory import send_arp_request
 
     print_section_header(console, "ARP REQUEST :: CAPA 2")
 
@@ -468,7 +526,7 @@ def _pf_arp_request():
 
 def _pf_icmp_ping():
     """ICMP Ping personalizado."""
-    from modules.packet_factory import send_icmp_ping
+    from core.packet_factory import send_icmp_ping
 
     print_section_header(console, "ICMP PING :: CAPA 3")
 
@@ -502,7 +560,7 @@ def _pf_icmp_ping():
 
 def _pf_traceroute():
     """Traceroute manual."""
-    from modules.packet_factory import manual_traceroute
+    from core.packet_factory import manual_traceroute
 
     print_section_header(console, "TRACEROUTE :: CAPA 3")
 
@@ -530,7 +588,7 @@ def _pf_traceroute():
 
 def _pf_tcp_probe():
     """TCP SYN Probe a puertos."""
-    from modules.packet_factory import tcp_port_probe, get_common_port_groups
+    from core.packet_factory import tcp_port_probe, get_common_port_groups
 
     print_section_header(console, "TCP SYN PROBE :: CAPA 4")
 
@@ -577,7 +635,7 @@ def _pf_tcp_probe():
 
 def _pf_tcp_custom():
     """Envio de segmento TCP personalizado con formulario visual de flags."""
-    from modules.packet_factory import send_tcp_custom, describe_flags
+    from core.packet_factory import send_tcp_custom, describe_flags
 
     print_section_header(console, "TCP CUSTOM SEGMENT :: CAPA 4")
 
@@ -629,7 +687,7 @@ def _pf_tcp_custom():
 
 def _pf_udp_probe():
     """Sondeo UDP."""
-    from modules.packet_factory import send_udp_probe
+    from core.packet_factory import send_udp_probe
 
     print_section_header(console, "UDP PROBE :: CAPA 4")
 
@@ -659,6 +717,110 @@ def _pf_udp_probe():
     print_footer(console)
     Prompt.ask(f"\n[{ARGOS_DIM}]Presiona Enter para volver[/{ARGOS_DIM}]")
 
+
+# ─────────────────────────────────────────────────────────────
+# Opcion 5: Auditoria de Seguridad
+# ─────────────────────────────────────────────────────────────
+
+def menu_security_audit():
+    """Submenu de auditoría de seguridad corporativa."""
+    print_section_header(console, "AUDITORIA DE SEGURIDAD")
+    console.print(f"  [{ARGOS_DIM}]Escaneo y validacion de servicios criticos de red[/{ARGOS_DIM}]")
+    console.print()
+
+    submenu = create_menu_table(
+        "OPERACIONES DE AUDITORIA",
+        [
+            ("1", "SSL/TLS", "Revisar vigencia e integridad de un certificado HTTPS"),
+            ("2", "DHCP", "Buscar servidores DHCP Rogue (Requiere Admin/Scapy)"),
+            ("3", "VOLVER", ""),
+        ],
+        has_category=True,
+    )
+    console.print(submenu)
+    print_footer(console)
+    console.print()
+
+    choice = Prompt.ask(
+        f"[{ARGOS_PRIMARY}]Selecciona auditoria[/{ARGOS_PRIMARY}]",
+        choices=["1", "2", "3"],
+        default="3",
+    )
+
+    if choice == "1":
+        _audit_ssl()
+    elif choice == "2":
+        _audit_dhcp()
+
+def _audit_ssl():
+    """Ejecuta el chequeo de certificado SSL."""
+    from core.audit import ssl_cert_check_advanced
+
+    print_section_header(console, "AUDITORIA SSL/TLS")
+    target_ip = Prompt.ask(f"  [{ARGOS_PRIMARY}]IP o Dominio destino[/{ARGOS_PRIMARY}]")
+    if not target_ip:
+        return
+        
+    port = int(Prompt.ask(f"  [{ARGOS_PRIMARY}]Puerto[/{ARGOS_PRIMARY}]", default="443"))
+
+    console.print()
+    try:
+        result = ssl_cert_check_advanced(target_ip, port, log_callback=_pf_log)
+        
+        if result["status"] == "ok":
+            color_date = ARGOS_ERROR_BOLD if result["expired"] else ARGOS_SUCCESS_BOLD
+            console.print(f"\n  [{ARGOS_PRIMARY_BOLD}]>> RESULTADOS DEL CERTIFICADO:[/{ARGOS_PRIMARY_BOLD}]")
+            console.print(f"  [{ARGOS_WHITE}]Emitido por:[/{ARGOS_WHITE}] {result['issuer'][:60]}")
+            console.print(f"  [{ARGOS_WHITE}]Sujeto:[/{ARGOS_WHITE}]      {result['subject'][:60]}")
+            console.print(f"  [{ARGOS_WHITE}]Válido hasta:[/{ARGOS_WHITE}] {result['valid_to']}")
+            console.print(f"  [{ARGOS_WHITE}]Versión TLS:[/{ARGOS_WHITE}]  {result['version']}")
+            console.print(f"  [{ARGOS_WHITE}]Estado:[/{ARGOS_WHITE}]       [{color_date}]{result['days_left']} días restantes[/{color_date}]")
+            if result["expired"]:
+                console.print(f"  [{ARGOS_ERROR_BOLD}]¡ALERTA! EL CERTIFICADO ESTÁ CADUCADO.[/{ARGOS_ERROR_BOLD}]")
+        else:
+            console.print(f"\n  [{ARGOS_WARN}]No fue posible verificar el certificado. Es probable que no soporte TLS o sea interno.[/{ARGOS_WARN}]")
+
+    except Exception as e:
+        console.print(f"\n  [{ARGOS_ERROR_BOLD}]Error: {e}[/{ARGOS_ERROR_BOLD}]")
+
+    print_footer(console)
+    Prompt.ask(f"\n[{ARGOS_DIM}]Presiona Enter para volver[/{ARGOS_DIM}]")
+
+def _audit_dhcp():
+    """Ejecuta un mapeo de servidores DHCP."""
+    from core.audit import dhcp_rogue_scan
+
+    print_section_header(console, "DHCP ROGUE DISCOVERY")
+    
+    iface = _get_primary_iface()
+    if iface:
+        create_context_panel(console, "DHCP DISCOVERY", iface)
+
+    if not is_admin():
+        console.print(f"\n  [{ARGOS_ERROR_BOLD}]X SE REQUIERE SER ADMINISTRADOR PARA ENVIAR BROADCASTS DHCP[/{ARGOS_ERROR_BOLD}]")
+        Prompt.ask(f"\n[{ARGOS_DIM}]Presiona Enter para volver[/{ARGOS_DIM}]")
+        return
+
+    legit_ip = Prompt.ask(f"  [{ARGOS_PRIMARY}]IP del Servidor Autorizado (Enter para mapar todos)[/{ARGOS_PRIMARY}]", default="")
+    
+    console.print()
+    try:
+        rogues = dhcp_rogue_scan(legit_ip, timeout=5, log_callback=_pf_log)
+        if rogues:
+            console.print(f"\n  [{ARGOS_PRIMARY_BOLD}]>> SERVIDORES RESPONDIDOS:[/{ARGOS_PRIMARY_BOLD}]")
+            for r in rogues:
+                is_rogue = r.get("is_rogue", False)
+                color = ARGOS_ERROR_BOLD if is_rogue else ARGOS_SUCCESS
+                tag = "(ROGUE DETECTADO)" if is_rogue else "(Autorizado/Desconocido)"
+                console.print(f"  [{color}]- IP: {r['dhcp_server_ip']} | MAC: {r['server_mac']} | Ofrece: {r['offered_ip']} {tag}[/{color}]")
+        else:
+            console.print(f"\n  [{ARGOS_WARN}]No respondieron servidores DHCP en la red local.[/{ARGOS_WARN}]")
+
+    except Exception as e:
+        console.print(f"\n  [{ARGOS_ERROR_BOLD}]Error: {e}[/{ARGOS_ERROR_BOLD}]")
+
+    print_footer(console)
+    Prompt.ask(f"\n[{ARGOS_DIM}]Presiona Enter para volver[/{ARGOS_DIM}]")
 
 # ─────────────────────────────────────────────────────────────
 # Utilidades internas
@@ -724,8 +886,8 @@ def main_loop():
 
         choice = Prompt.ask(
             f"[{ARGOS_PRIMARY}]Argos >[/{ARGOS_PRIMARY}]",
-            choices=["1", "2", "3", "4", "5"],
-            default="5",
+            choices=["1", "2", "3", "4", "5", "6"],
+            default="6",
         )
 
         if choice == "1":
@@ -737,5 +899,7 @@ def main_loop():
         elif choice == "4":
             menu_packet_factory()
         elif choice == "5":
+            menu_security_audit()
+        elif choice == "6":
             console.print(f"\n  [{ARGOS_PRIMARY}]Argos desconectado.[/{ARGOS_PRIMARY}]\n")
             sys.exit(0)

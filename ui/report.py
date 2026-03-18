@@ -8,9 +8,11 @@ from typing import List, Dict
 
 from rich.table import Table
 from rich.panel import Panel
+from rich.live import Live
 from rich import box
+import time
 
-from modules.theme import (
+from ui.theme import (
     ARGOS_PRIMARY,
     ARGOS_PRIMARY_BOLD,
     ARGOS_WHITE,
@@ -37,7 +39,7 @@ def create_device_table(devices: List[Dict], scan_method: str = "", _local_ip: s
         header_style=f"bold {ARGOS_WHITE} on #2D002D",
         show_lines=True,
         padding=(0, 1),
-        box=box.DOUBLE_EDGE,
+        box=box.SQUARE_DOUBLE_HEADED,
     )
 
     table.add_column("#", style=ARGOS_DIM, width=4, justify="center")
@@ -63,6 +65,45 @@ def create_device_table(devices: List[Dict], scan_method: str = "", _local_ip: s
 
     return table
 
+def display_animated_device_table(console, devices: List[Dict], scan_method: str = "", _local_ip: str = ""):
+    """Muestra la tabla de dispositivos con animación estilo Matrix."""
+    title = f"DISPOSITIVOS DESCUBIERTOS ({len(devices)})"
+    if scan_method:
+        title += f"  ::  Metodo: {scan_method}"
+
+    table = Table(
+        title=title,
+        title_style=ARGOS_PRIMARY_BOLD,
+        border_style=ARGOS_PRIMARY,
+        header_style=f"bold {ARGOS_WHITE} on #2D002D",
+        show_lines=True,
+        padding=(0, 1),
+        box=box.SQUARE_DOUBLE_HEADED,
+    )
+
+    table.add_column("#", style=ARGOS_DIM, width=4, justify="center")
+    table.add_column("IP", style=ARGOS_WHITE, width=16)
+    table.add_column("MAC", style=ARGOS_WHITE, width=19)
+    table.add_column("Hostname", style=ARGOS_WHITE, width=28)
+    table.add_column("Latencia", width=12, justify="right")
+    table.add_column("Fabricante", style=ARGOS_MUTED, width=15)
+
+    with Live(table, console=console, refresh_per_second=15, vertical_overflow="visible") as live:
+        for i, device in enumerate(devices, 1):
+            ip = device["ip"]
+            mac = device.get("mac", "N/A")
+            hostname = device.get("hostname", "Desconocido")
+            latency = device.get("latency_ms")
+            vendor = device.get("vendor", "")
+
+            lat_str = format_latency(latency)
+
+            if hostname == "Desconocido" and ip.endswith(".1"):
+                hostname = f"[{ARGOS_WARN}]>> Gateway (probable)[/{ARGOS_WARN}]"
+
+            table.add_row(str(i), ip, mac, hostname, lat_str, vendor)
+            time.sleep(0.04) # Animación Matrix
+
 
 def create_interface_table(interfaces: List[Dict]) -> Table:
     """Tabla de interfaces de red."""
@@ -73,7 +114,7 @@ def create_interface_table(interfaces: List[Dict]) -> Table:
         header_style=f"bold {ARGOS_WHITE} on #2D002D",
         show_lines=True,
         padding=(0, 1),
-        box=box.DOUBLE_EDGE,
+        box=box.SQUARE_DOUBLE_HEADED,
     )
 
     table.add_column("#", style=ARGOS_DIM, width=4, justify="center")
@@ -164,7 +205,7 @@ def create_speed_result_panel(result: Dict) -> Panel:
         title=f"[{ARGOS_PRIMARY_BOLD}]SPEED TEST RESULTS[/{ARGOS_PRIMARY_BOLD}]",
         border_style=ARGOS_PRIMARY,
         padding=(1, 2),
-        box=box.DOUBLE,
+        box=box.SQUARE_DOUBLE_HEADED,
     )
 
 
@@ -192,7 +233,7 @@ def create_scan_summary(
         title=f"[{ARGOS_PRIMARY_BOLD}]SCAN SUMMARY[/{ARGOS_PRIMARY_BOLD}]",
         border_style=ARGOS_PRIMARY,
         padding=(1, 2),
-        box=box.DOUBLE,
+        box=box.SQUARE_DOUBLE_HEADED,
     )
 
 
@@ -205,13 +246,14 @@ def create_port_table(results: List[Dict]) -> Table:
         header_style=f"bold {ARGOS_WHITE} on #2D002D",
         show_lines=True,
         padding=(0, 1),
-        box=box.DOUBLE_EDGE,
+        box=box.SQUARE_DOUBLE_HEADED,
     )
 
     table.add_column("Puerto", style=ARGOS_WHITE, width=8, justify="right")
     table.add_column("Servicio", style=ARGOS_PRIMARY, width=12)
     table.add_column("Estado", width=18)
     table.add_column("Flags", style=ARGOS_MUTED, width=10)
+    table.add_column("Banner / Info", style=ARGOS_WHITE, width=32)
 
     for r in results:
         table.add_row(
@@ -219,6 +261,7 @@ def create_port_table(results: List[Dict]) -> Table:
             r.get("service", ""),
             format_port_status(r["status"]),
             r.get("flags_received", "-"),
+            r.get("banner", "")[:32]
         )
 
     return table
@@ -233,7 +276,7 @@ def create_traceroute_table(hops: List[Dict]) -> Table:
         header_style=f"bold {ARGOS_WHITE} on #2D002D",
         show_lines=True,
         padding=(0, 1),
-        box=box.DOUBLE_EDGE,
+        box=box.SQUARE_DOUBLE_HEADED,
     )
 
     table.add_column("TTL", style=ARGOS_PRIMARY, width=5, justify="center")
@@ -282,5 +325,5 @@ def create_ping_summary(stats: Dict) -> Panel:
         title=f"[{ARGOS_PRIMARY_BOLD}]ICMP PING RESULTS[/{ARGOS_PRIMARY_BOLD}]",
         border_style=ARGOS_PRIMARY,
         padding=(1, 2),
-        box=box.DOUBLE,
+        box=box.SQUARE_DOUBLE_HEADED,
     )

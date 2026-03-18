@@ -14,7 +14,7 @@ Requiere:
 import time
 from typing import Optional, Dict, List, Any, Callable
 
-from modules.net_utils import is_private_ip
+from core.net_utils import is_private_ip
 
 # ─────────────────────────────────────────────────────────────
 # Verificación de dependencias
@@ -49,7 +49,12 @@ def _require_scapy():
 
 
 def _validate_target(ip: str):
-    """Valida que el destino sea una IP privada."""
+    """Valida que el destino sea una IP privada y previene reflexiones."""
+    if ip == "0.0.0.0" or ip == "255.255.255.255":
+        raise ValueError(f"SECURITY BLOCK: IP {ip} denegada por sanitización.")
+    if ip.startswith("127."):
+        raise ValueError("SECURITY BLOCK: Análisis a localhost denegado en Raw Sockets.")
+        
     if not is_private_ip(ip):
         raise ValueError(
             f"BLOQUEADO: {ip} no es una IP privada (RFC 1918).\n"
@@ -451,18 +456,29 @@ def tcp_port_probe(
             status = "unknown"
             flag_str = "-"
 
+        if status == "open":
+            try:
+                from core.service_audit import grab_banner
+                banner = grab_banner(dst_ip, port, timeout=1.0)
+            except Exception:
+                banner = ""
+        else:
+            banner = ""
+
         result = {
             "port": port,
             "status": status,
             "flags_received": flag_str,
             "service": _common_service(port),
+            "banner": banner,
         }
         results.append(result)
 
         icon = {"open": "🟢", "closed": "🔴", "filtered": "🟡"}.get(status, "⚪")
+        banner_display = f" | {banner}" if banner else ""
         _log(
             f"  {icon} Puerto {port:>5d}/{_common_service(port):<10s}: "
-            f"{status.upper()} (flags: {flag_str})"
+            f"{status.upper()} (flags: {flag_str}){banner_display}"
         )
 
     return results

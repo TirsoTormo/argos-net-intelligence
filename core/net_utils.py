@@ -122,7 +122,7 @@ def is_private_ip(ip: str) -> bool:
 
 def resolve_hostname(ip: str, timeout: float = 1.0) -> str:
     """
-    Intenta resolver el hostname de una IP mediante DNS inverso.
+    Intenta resolver el hostname de una IP mediante DNS inverso y NetBIOS.
 
     Args:
         ip: Dirección IPv4
@@ -131,12 +131,32 @@ def resolve_hostname(ip: str, timeout: float = 1.0) -> str:
     Returns:
         Hostname resuelto o 'Desconocido'
     """
+    # 1. DNS Standard (mDNS / Local DNS)
     try:
         socket.setdefaulttimeout(timeout)
         hostname = socket.gethostbyaddr(ip)[0]
-        return hostname
+        if hostname and hostname != ip:
+            return hostname
     except (socket.herror, socket.gaierror, socket.timeout, OSError):
-        return "Desconocido"
+        pass
+
+    # 2. NetBIOS Fallback (Windows)
+    try:
+        import platform, subprocess, re
+        if platform.system().lower() == "windows":
+            cmd = ["nbtstat", "-A", ip]
+            result = subprocess.run(
+                cmd, capture_output=True, text=True, timeout=1.5, 
+                creationflags=subprocess.CREATE_NO_WINDOW
+            )
+            # Buscar línea tipo: "   NOMBREEQUIPO   <00>  UNIQUE"
+            match = re.search(r"\s+([A-Za-z0-9\-_]+)\s+<00>\s+UNIQUE", result.stdout)
+            if match:
+                return match.group(1).strip()
+    except Exception:
+        pass
+
+    return "Desconocido"
 
 
 def get_active_interfaces() -> List[Dict]:

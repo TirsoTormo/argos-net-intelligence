@@ -13,7 +13,7 @@ import ipaddress
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Dict, Optional, Callable
 
-from modules.net_utils import (
+from core.net_utils import (
     get_network_cidr,
     get_all_host_ips,
     resolve_hostname,
@@ -69,7 +69,6 @@ def arp_scan(ip: str, mask: str, progress_callback: Optional[Callable] = None) -
 
             hostname = resolve_hostname(target_ip)
             latency = _ping_host(target_ip)
-            vendor = _mac_vendor_hint(target_mac)
 
             devices.append(
                 {
@@ -77,7 +76,7 @@ def arp_scan(ip: str, mask: str, progress_callback: Optional[Callable] = None) -
                     "mac": target_mac.upper(),
                     "hostname": hostname,
                     "latency_ms": latency,
-                    "vendor": vendor,
+                    "vendor": "",
                     "method": "ARP",
                 }
             )
@@ -135,13 +134,12 @@ def ping_sweep(
         if latency is not None:
             hostname = resolve_hostname(target_ip)
             mac = _get_mac_from_arp_table(target_ip)
-            vendor = _mac_vendor_hint(mac) if mac != "N/A" else ""
             return {
                 "ip": target_ip,
                 "mac": mac,
                 "hostname": hostname,
                 "latency_ms": latency,
-                "vendor": vendor,
+                "vendor": "",
                 "method": "Ping",
             }
         return None
@@ -257,82 +255,3 @@ def _get_mac_from_arp_table(ip: str) -> str:
         return "N/A"
 
 
-def _mac_vendor_hint(mac: str) -> str:
-    """
-    Proporciona una pista del fabricante basándose en los primeros 3 octetos de la MAC.
-    Base de datos reducida con los fabricantes más comunes en redes empresariales.
-    """
-    if not mac or mac == "N/A":
-        return ""
-
-    prefix = mac.upper().replace("-", ":").replace(".", ":")[:8]
-
-    vendors = {
-        "00:50:56": "VMware",
-        "00:0C:29": "VMware",
-        "00:1C:42": "Parallels",
-        "08:00:27": "VirtualBox",
-        "52:54:00": "QEMU/KVM",
-        "00:15:5D": "Hyper-V",
-        "B8:27:EB": "Raspberry Pi",
-        "DC:A6:32": "Raspberry Pi",
-        "E4:5F:01": "Raspberry Pi",
-        "3C:22:FB": "Apple",
-        "A4:83:E7": "Apple",
-        "F0:18:98": "Apple",
-        "AC:DE:48": "Apple",
-        "00:1A:2B": "Cisco",
-        "00:1B:54": "Cisco",
-        "00:25:45": "Cisco",
-        "00:0C:41": "Cisco",
-        "00:18:0A": "Cisco",
-        "00:1E:68": "Quanta (Server)",
-        "FC:15:B4": "HP/HPE",
-        "3C:D9:2B": "HP/HPE",
-        "C8:D9:D2": "TP-Link",
-        "50:C7:BF": "TP-Link",
-        "B0:BE:76": "TP-Link",
-        "C4:6E:1F": "TP-Link",
-        "14:CC:20": "TP-Link",
-        "E8:48:B8": "D-Link",
-        "1C:7E:E5": "D-Link",
-        "00:24:01": "D-Link",
-        "F8:D1:11": "TP-Link",
-        "10:FE:ED": "MikroTik",
-        "4C:5E:0C": "MikroTik",
-        "D4:CA:6D": "MikroTik",
-        "6C:3B:6B": "MikroTik",
-        "CC:2D:E0": "MikroTik",
-        "2C:C8:1B": "MikroTik",
-        "B8:69:F4": "MikroTik",
-        "E4:8D:8C": "MikroTik",
-        "48:A9:8A": "MikroTik",
-        "74:4D:28": "MikroTik",
-        "00:1C:25": "Samsung",
-        "34:23:BA": "Samsung",
-        "AC:5F:3E": "Samsung",
-        "78:02:F8": "Xiaomi",
-        "64:CC:2E": "Xiaomi",
-        "28:6C:07": "Xiaomi",
-        "E0:DC:FF": "Xiaomi",
-        "30:B5:C2": "TP-Link",
-        "EC:08:6B": "TP-Link",
-        "60:32:B1": "Aruba",
-        "00:0B:86": "Aruba",
-        "24:DE:C6": "Aruba",
-        "20:A6:CD": "Aruba",
-        "00:1A:1E": "Aruba",
-        "94:B4:0F": "Ubiquiti",
-        "FC:EC:DA": "Ubiquiti",
-        "24:5A:4C": "Ubiquiti",
-        "78:8A:20": "Ubiquiti",
-        "B4:FB:E4": "Ubiquiti",
-        "F0:9F:C2": "Ubiquiti",
-        "68:72:51": "Ubiquiti",
-        "44:D9:E7": "Ubiquiti",
-        "18:E8:29": "Ubiquiti",
-        "00:27:22": "Ubiquiti",
-        "04:18:D6": "Ubiquiti",
-    }
-
-    return vendors.get(prefix, "")
