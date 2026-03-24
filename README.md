@@ -41,7 +41,7 @@ Argos uses Scapy for packet manipulation, which requires raw socket privileges (
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/YOUR_USERNAME/argos-net-intelligence.git
+git clone https://github.com/TirsoTormo/argos-net-intelligence.git
 cd argos-net-intelligence
 
 # 2. (Optional) Create a virtual environment
