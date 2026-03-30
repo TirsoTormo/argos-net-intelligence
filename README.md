@@ -60,7 +60,8 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 
 ### 2. Setup Project
 ```bash
-git clone https://github.com/TirsoTormo/argos-net-intelligence.git
+# 1. Clone the repository
+git clone https://github.com/YOUR_USERNAME/argos-net-intelligence.git
 cd argos-net-intelligence
 
 # Sync environment and install dependencies
