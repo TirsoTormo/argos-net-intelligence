@@ -1,9 +1,9 @@
 # pylint: disable=import-outside-toplevel
 """
-Argos — Sistema de Tema Visual (Elite Purple Edition)
+Argos — Visual Theme System (Elite Purple Edition)
 ======================================================
-Paleta morada/magenta para estética de ciberseguridad elite.
-Sin emojis. Solo texto, separadores y ASCII.
+Purple/magenta palette for elite cybersecurity aesthetics.
+No emojis. Pure text, separators, and ASCII.
 """
 
 from typing import Dict, Optional
@@ -15,34 +15,34 @@ from rich.console import Console
 from rich import box
 
 # ─────────────────────────────────────────────────────────────
-# PALETA CORPORATIVA — ELITE PURPLE
+# CORPORATE PALETTE — ELITE PURPLE
 # ─────────────────────────────────────────────────────────────
 
-# Morado / Magenta — Color principal
+# Purple / Magenta — Main color
 ARGOS_PRIMARY = "magenta"
 ARGOS_PRIMARY_BOLD = "bold magenta"
 ARGOS_PRIMARY_DIM = "#8B008B"
 
-# Blanco / Gris — Texto descriptivo y datos
+# White / Gray — Descriptive text and data
 ARGOS_WHITE = "bright_white"
 ARGOS_DIM = "dim"
 ARGOS_MUTED = "#888888"
 
-# Verde — Solo para estados de exito
+# Green — Only for success states
 ARGOS_SUCCESS = "green"
 ARGOS_SUCCESS_BOLD = "bold green"
 
-# Rojo — Errores criticos y denegacion
+# Red — Critical errors and denial
 ARGOS_ERROR = "#FF1744"
 ARGOS_ERROR_BOLD = "bold red"
 
-# Amarillo — Advertencias
+# Yellow — Warnings
 ARGOS_WARN = "yellow"
 ARGOS_WARN_BOLD = "bold yellow"
 
 
 # ─────────────────────────────────────────────────────────────
-# TEMA RICH
+# RICH THEME
 # ─────────────────────────────────────────────────────────────
 
 ARGOS_THEME = Theme(
@@ -78,28 +78,28 @@ BANNER_ART = r"""[bold magenta]
 
 BANNER_SUBTITLE = f"[{ARGOS_WHITE}]  Network Intelligence & Packet Factory[/{ARGOS_WHITE}]"
 BANNER_VERSION = (
-    f"[{ARGOS_DIM}]  Enterprise-Grade Network Tool v1.0 -- Solo red local (RFC 1918)[/{ARGOS_DIM}]"
+    f"[{ARGOS_DIM}]  Enterprise-Grade Network Tool v1.0 -- Local network only (RFC 1918)[/{ARGOS_DIM}]"
 )
 
 
 # ─────────────────────────────────────────────────────────────
-# COMPONENTES REUTILIZABLES
+# REUSABLE COMPONENTS
 # ─────────────────────────────────────────────────────────────
 
 
 def create_status_bar(console: Console, iface: Optional[Dict] = None, is_admin: bool = False):
     """
-    Status Bar horizontal: interfaz activa, IP, Gateway, admin.
-    Sin emojis. Texto puro.
+    Horizontal Status Bar: active interface, IP, Gateway, admin.
+    No emojis. Pure text.
     """
     admin_str = (
-        f"[{ARGOS_SUCCESS}]MODO: Admin[/{ARGOS_SUCCESS}]"
+        f"[{ARGOS_SUCCESS}]MODE: Admin[/{ARGOS_SUCCESS}]"
         if is_admin
-        else f"[{ARGOS_ERROR}]MODO: Sin Admin[/{ARGOS_ERROR}]"
+        else f"[{ARGOS_ERROR}]MODE: Non-Admin[/{ARGOS_ERROR}]"
     )
 
     if iface:
-        from core.net_utils import get_gateway_ip, get_network_cidr
+        from argos.core.net_utils import get_gateway_ip, get_network_cidr
 
         gateway = get_gateway_ip(iface["ip"], iface["mask"])
         cidr = get_network_cidr(iface["ip"], iface["mask"])
@@ -119,7 +119,7 @@ def create_status_bar(console: Console, iface: Optional[Dict] = None, is_admin: 
         ]
     else:
         parts = [
-            f"[{ARGOS_WARN}]Sin interfaz activa detectada[/{ARGOS_WARN}]",
+            f"[{ARGOS_WARN}]No active interface detected[/{ARGOS_WARN}]",
             admin_str,
         ]
 
@@ -136,21 +136,21 @@ def create_status_bar(console: Console, iface: Optional[Dict] = None, is_admin: 
 
 def create_context_panel(console: Console, module_name: str, iface: Optional[Dict] = None):
     """
-    Panel de contexto de red al inicio de cada modulo.
-    Sin emojis. Texto puro con separadores.
+    Network context panel at the beginning of each module.
+    No emojis. Pure text with separators.
     """
     if iface:
-        from core.net_utils import get_gateway_ip, get_network_cidr
+        from argos.core.net_utils import get_gateway_ip, get_network_cidr
 
         gateway = get_gateway_ip(iface["ip"], iface["mask"])
         cidr = get_network_cidr(iface["ip"], iface["mask"])
 
         lines = [
-            f"  [{ARGOS_PRIMARY}]Interfaz:[/{ARGOS_PRIMARY}]  "
+            f"  [{ARGOS_PRIMARY}]Interface:[/{ARGOS_PRIMARY}]  "
             f"[{ARGOS_WHITE}]{iface['name']}[/{ARGOS_WHITE}]  ({iface['type']})",
-            f"  [{ARGOS_PRIMARY}]IP Local:[/{ARGOS_PRIMARY}]   "
+            f"  [{ARGOS_PRIMARY}]Local IP:[/{ARGOS_PRIMARY}]   "
             f"[{ARGOS_WHITE}]{iface['ip']}[/{ARGOS_WHITE}]",
-            f"  [{ARGOS_PRIMARY}]Subred:[/{ARGOS_PRIMARY}]     "
+            f"  [{ARGOS_PRIMARY}]Subnet:[/{ARGOS_PRIMARY}]     "
             f"[{ARGOS_WHITE}]{cidr}[/{ARGOS_WHITE}]",
             f"  [{ARGOS_PRIMARY}]Gateway:[/{ARGOS_PRIMARY}]    "
             f"[{ARGOS_WHITE}]{gateway}[/{ARGOS_WHITE}]",
@@ -158,7 +158,7 @@ def create_context_panel(console: Console, module_name: str, iface: Optional[Dic
             f"[{ARGOS_WHITE}]{iface['mac']}[/{ARGOS_WHITE}]",
         ]
     else:
-        lines = [f"  [{ARGOS_WARN}]Sin interfaz de red activa[/{ARGOS_WARN}]"]
+        lines = [f"  [{ARGOS_WARN}]No active network interface[/{ARGOS_WARN}]"]
 
     console.print(
         Panel(
@@ -173,8 +173,8 @@ def create_context_panel(console: Console, module_name: str, iface: Optional[Dic
 
 def create_tcp_flags_display(flags: str) -> str:
     """
-    Formulario visual de flags TCP con checkmarks ASCII.
-    Activos: [X] en magenta. Inactivos: [ ] en gris.
+    Visual TCP flags form with ASCII checkmarks.
+    Active: [X] in magenta. Inactive: [ ] in gray.
     """
     all_flags = [
         ("S", "SYN"),
@@ -198,7 +198,7 @@ def create_tcp_flags_display(flags: str) -> str:
 
 
 def create_tcp_flags_panel(console: Console, flags: str):
-    """Panel visual de flags TCP seleccionados."""
+    """Visual panel for selected TCP flags."""
     flags_display = create_tcp_flags_display(flags)
     console.print(
         Panel(
@@ -212,23 +212,23 @@ def create_tcp_flags_panel(console: Console, flags: str):
 
 
 def print_footer(console: Console):
-    """Footer con atajos de teclado. Sin emojis."""
+    """Footer with keyboard shortcuts. No emojis."""
     console.print(
         f"\n  [{ARGOS_MUTED}]"
-        f"Ctrl+C: Abortar  |  "
-        f"Enter: Confirmar  |  "
+        f"Ctrl+C: Abort  |  "
+        f"Enter: Confirm  |  "
         f"Argos v1.0"
         f"[/{ARGOS_MUTED}]"
     )
 
 
 def print_section_header(console: Console, title: str):
-    """Encabezado de seccion con linea decorativa. Sin emojis."""
+    """Section header with decorative line. No emojis."""
     console.print(f"\n[{ARGOS_PRIMARY_BOLD}]{'=' * 3} {title} {'=' * 3}[/{ARGOS_PRIMARY_BOLD}]\n")
 
 
 def format_latency(ms: Optional[float]) -> str:
-    """Formatea latencia con color segun valor."""
+    """Formats latency with color according to value."""
     if ms is None:
         return f"[{ARGOS_MUTED}]N/A[/{ARGOS_MUTED}]"
     if ms < 5:
@@ -239,7 +239,7 @@ def format_latency(ms: Optional[float]) -> str:
 
 
 def format_port_status(status: str) -> str:
-    """Estado de puerto con color. Sin emojis."""
+    """Port status with color. No emojis."""
     if status == "open":
         return f"[{ARGOS_SUCCESS_BOLD}]OPEN[/{ARGOS_SUCCESS_BOLD}]"
     if status == "closed":
@@ -252,7 +252,7 @@ def format_port_status(status: str) -> str:
 
 
 def create_menu_table(title: str, rows: list, has_category: bool = False) -> Table:
-    """Tabla de menu estilizada. Sin emojis."""
+    """Stylized menu table. No emojis."""
     table = Table(
         show_header=False,
         box=box.ROUNDED,
@@ -273,7 +273,7 @@ def create_menu_table(title: str, rows: list, has_category: bool = False) -> Tab
 
 
 def argos_log(console: Console, msg: str, level: str = "info"):
-    """Logger visual. Sin emojis."""
+    """Visual logger. No emojis."""
     icons = {
         "info": "|",
         "success": "+",

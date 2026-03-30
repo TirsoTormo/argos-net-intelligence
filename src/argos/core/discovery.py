@@ -1,8 +1,8 @@
 # pylint: disable=too-many-locals, broad-exception-caught, import-outside-toplevel, unused-variable, subprocess-run-check, unused-import
 """
-NetScanner - Módulo de Descubrimiento de Red
-Escanea la red local para detectar dispositivos conectados.
-Usa ARP Scan (Scapy) como método principal y Ping Sweep como fallback.
+NetScanner - Network Discovery Module
+Scans the local network to detect connected devices.
+Uses ARP Scan (Scapy) as the primary method and Ping Sweep as fallback.
 """
 
 import subprocess
@@ -13,26 +13,27 @@ import ipaddress
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Dict, Optional, Callable
 
-from core.net_utils import (
+from argos.core.net_utils import (
     get_network_cidr,
     get_all_host_ips,
     resolve_hostname,
     is_private_ip,
 )
+from argos.core.models import DeviceModel
 
 
 def arp_scan(ip: str, mask: str, progress_callback: Optional[Callable] = None) -> List[Dict]:
     """
-    Escaneo ARP usando Scapy. Método rápido y preciso.
-    Requiere privilegios de administrador.
+    ARP Scan using Scapy. Fast and precise method.
+    Requires administrator privileges.
 
     Args:
-        ip: IP local del host
-        mask: Máscara de subred
-        progress_callback: Función opcional para reportar progreso
+        ip: Local host IP
+        mask: Subnet mask
+        progress_callback: Optional function to report progress
 
     Returns:
-        Lista de dispositivos descubiertos
+        List of discovered devices
     """
     try:
         from scapy.all import ARP, Ether, srp, conf
@@ -42,16 +43,32 @@ def arp_scan(ip: str, mask: str, progress_callback: Optional[Callable] = None) -
         cidr = get_network_cidr(ip, mask)
 
         if progress_callback:
-            progress_callback("Enviando paquetes ARP...", 0.1)
+            progress_callback("Sending ARP packets...", 0.1)
 
         arp_request = ARP(pdst=cidr)
         broadcast = Ether(dst="ff:ff:ff:ff:ff:ff")
         packet = broadcast / arp_request
 
         if progress_callback:
-            progress_callback("Esperando respuestas...", 0.3)
+            progress_callback("Waiting for responses...", 0.3)
 
-        answered, _ = srp(packet, timeout=3, retry=1, verbose=False)
+        try:
+            answered, _ = srp(packet, timeout=3, retry=1, verbose=False)
+        except Exception as e:
+            msg = str(e).lower()
+            if (
+                "winpcap is not installed" in msg
+                or "npcap" in msg
+                or "not available at layer 2" in msg
+                or "layer 2" in msg and "pcap" in msg
+            ):
+                if progress_callback:
+                    progress_callback(
+                        "Layer 2 not available (Npcap/WinPcap missing). Using Ping Sweep...",
+                        0.05,
+                    )
+                return []
+            raise
 
         devices = []
         total = len(answered)
@@ -65,33 +82,38 @@ def arp_scan(ip: str, mask: str, progress_callback: Optional[Callable] = None) -
 
             if progress_callback:
                 pct = 0.4 + (0.5 * (i + 1) / max(total, 1))
-                progress_callback(f"Resolviendo {target_ip}...", pct)
+                progress_callback(f"Resolving {target_ip}...", pct)
 
             hostname = resolve_hostname(target_ip)
             latency = _ping_host(target_ip)
 
             devices.append(
-                {
-                    "ip": target_ip,
-                    "mac": target_mac.upper(),
-                    "hostname": hostname,
-                    "latency_ms": latency,
-                    "vendor": "",
-                    "method": "ARP",
-                }
+                DeviceModel(
+                    ip=target_ip,
+                    mac=target_mac,
+                    hostname=hostname,
+                    latency_ms=latency,
+                    method="ARP"
+                )
             )
 
         if progress_callback:
-            progress_callback("Escaneo ARP completado", 1.0)
+            progress_callback("ARP Scan completed", 1.0)
 
-        devices.sort(key=lambda d: ipaddress.IPv4Address(d["ip"]))
+        devices.sort(key=lambda d: ipaddress.IPv4Address(d.ip))
         return devices
 
     except ImportError:
+        if progress_callback:
+            progress_callback("Scapy not available. Using Ping Sweep...", 0.05)
         return []
     except PermissionError:
+        if progress_callback:
+            progress_callback("No privileges for ARP (Admin required). Using Ping Sweep...", 0.05)
         return []
-    except Exception:
+    except Exception as e:
+        if progress_callback:
+            progress_callback(f"ARP Scan failed ({e}). Using Ping Sweep...", 0.05)
         return []
 
 
@@ -99,17 +121,17 @@ def ping_sweep(
     ip: str, mask: str, max_workers: int = 50, progress_callback: Optional[Callable] = None
 ) -> List[Dict]:
     """
-    Escaneo por Ping Sweep usando el comando 'ping' nativo del sistema.
-    Método de fallback que no requiere privilegios especiales.
+    Ping Sweep scan using system's native 'ping' command.
+    Fallback method that doesn't require special privileges.
 
     Args:
-        ip: IP local del host
-        mask: Máscara de subred
-        max_workers: Número máximo de hilos concurrentes
-        progress_callback: Función opcional para reportar progreso
+        ip: Local host IP
+        mask: Subnet mask
+        max_workers: Maximum number of concurrent threads
+        progress_callback: Optional function to report progress
 
     Returns:
-        Lista de dispositivos descubiertos
+        List of discovered devices
     """
     host_ips = get_all_host_ips(ip, mask)
     # Excluir nuestra propia IP
@@ -134,47 +156,54 @@ def ping_sweep(
         if latency is not None:
             hostname = resolve_hostname(target_ip)
             mac = _get_mac_from_arp_table(target_ip)
-            return {
-                "ip": target_ip,
-                "mac": mac,
-                "hostname": hostname,
-                "latency_ms": latency,
-                "vendor": "",
-                "method": "Ping",
-            }
+            return DeviceModel(
+                ip=target_ip,
+                mac=mac,
+                hostname=hostname,
+                latency_ms=latency,
+                method="Ping"
+            )
         return None
 
     if progress_callback:
-        progress_callback(f"Iniciando ping sweep en {total} hosts...", 0.0)
+        progress_callback(f"Starting ping sweep on {total} hosts...", 0.0)
 
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {executor.submit(ping_single, h): h for h in host_ips}
+    executor = ThreadPoolExecutor(max_workers=max_workers)
+    futures = {executor.submit(ping_single, h): h for h in host_ips}
+    try:
         for future in as_completed(futures):
             result = future.result()
             if result:
                 devices.append(result)
+    except KeyboardInterrupt:
+        for f in futures:
+            f.cancel()
+        executor.shutdown(wait=False)
+        raise
+    else:
+        executor.shutdown(wait=True)
 
     if progress_callback:
-        progress_callback("Ping sweep completado", 1.0)
+        progress_callback("Ping sweep completed", 1.0)
 
-    devices.sort(key=lambda d: ipaddress.IPv4Address(d["ip"]))
+    devices.sort(key=lambda d: ipaddress.IPv4Address(d.ip))
     return devices
 
 
 def full_scan(ip: str, mask: str, progress_callback: Optional[Callable] = None) -> tuple:
     """
-    Ejecuta un escaneo completo: intenta ARP primero, si falla usa Ping Sweep.
+    Executes a complete scan: attempts ARP first, if it fails uses Ping Sweep.
 
     Args:
-        ip: IP local del host
-        mask: Máscara de subred
-        progress_callback: Callback de progreso
+        ip: Local host IP
+        mask: Subnet mask
+        progress_callback: Progress callback
 
     Returns:
-        Tupla (lista_dispositivos, método_usado)
+        Tuple (device_list, method_used)
     """
     if progress_callback:
-        progress_callback("Intentando escaneo ARP...", 0.0)
+        progress_callback("Attempting ARP scan...", 0.0)
 
     devices = arp_scan(ip, mask, progress_callback)
 
@@ -182,7 +211,7 @@ def full_scan(ip: str, mask: str, progress_callback: Optional[Callable] = None) 
         return devices, "ARP Scan (Scapy)"
 
     if progress_callback:
-        progress_callback("ARP no disponible, usando Ping Sweep...", 0.05)
+        progress_callback("ARP not available, using Ping Sweep...", 0.05)
 
     devices = ping_sweep(ip, mask, progress_callback=progress_callback)
     return devices, "Ping Sweep (fallback)"
@@ -190,10 +219,10 @@ def full_scan(ip: str, mask: str, progress_callback: Optional[Callable] = None) 
 
 def _ping_host(ip: str, count: int = 1, timeout: int = 1) -> Optional[float]:
     """
-    Hace ping a un host y retorna la latencia en ms.
+    Pings a host and returns latency in ms.
 
     Returns:
-        Latencia en ms o None si no responde
+        Latency in ms or None if no response
     """
     system = platform.system().lower()
 
@@ -227,7 +256,7 @@ def _ping_host(ip: str, count: int = 1, timeout: int = 1) -> Optional[float]:
 
 def _get_mac_from_arp_table(ip: str) -> str:
     """
-    Busca la MAC de una IP en la tabla ARP del sistema.
+    Looks for the MAC of an IP in the system ARP table.
     """
     try:
         system = platform.system().lower()

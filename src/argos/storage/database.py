@@ -1,33 +1,35 @@
 """
 Argos — Database Manager
-Maneja la conexión a SQLite para la persistencia del inventario de red
-y el historial de auditoría.
+Handles SQLite connection for network inventory persistence
+and audit history.
 """
 
 import sqlite3
 import datetime
-from typing import List, Dict, Optional
+import json
+from typing import List, Dict, Optional, Any
+from argos.core.models import DeviceModel, ScanResultModel
 
 
 class DatabaseManager:
-    """Clase para interactuar con la base de datos SQLite."""
+    """Class to interact with the SQLite database."""
 
     def __init__(self, db_path: str = "argos_audit.db"):
         self.db_path = db_path
         self._init_db()
 
     def _get_connection(self) -> sqlite3.Connection:
-        """Devuelve una conexión a la base de datos."""
+        """Returns a database connection."""
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         return conn
 
     def _init_db(self):
-        """Inicializa las tablas si no existen."""
+        """Initializes tables if they do not exist."""
         with self._get_connection() as conn:
             cursor = conn.cursor()
 
-            # Tabla de escaneos (historial)
+            # Scan history table
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS scan_history (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -39,7 +41,7 @@ class DatabaseManager:
                 )
             ''')
 
-            # Tabla de dispositivos (inventario)
+            # Devices table (inventory)
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS devices (
                     mac TEXT PRIMARY KEY,
@@ -51,7 +53,7 @@ class DatabaseManager:
                 )
             ''')
 
-            # Tabla de registro de presencia por IP y MAC
+            # Presence log by IP and MAC
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS device_presence (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -66,46 +68,48 @@ class DatabaseManager:
 
             conn.commit()
 
-    def save_scan(self, network_cidr: str, scan_method: str, duration: float, devices: List[Dict]) -> bool:
+    def save_scan(self, scan: ScanResultModel) -> bool:
         """
-        Guarda el resultado de un escaneo en la base de datos y actualiza
-        el inventario de dispositivos.
+        Saves a scan result (Pydantic model) to the database.
         """
         try:
             with self._get_connection() as conn:
                 cursor = conn.cursor()
-                now = datetime.datetime.now().isoformat()
+                now = scan.timestamp.isoformat()
 
-                # 1. Insertar metadatos del escaneo
+                # 1. Insert scan metadata
                 cursor.execute(
                     '''INSERT INTO scan_history (timestamp, network_cidr, scan_method, duration_sec, devices_found) 
                        VALUES (?, ?, ?, ?, ?)''',
-                    (now, network_cidr, scan_method, duration, len(devices))
+                    (now, scan.network_cidr, scan.scan_method, scan.duration_sec, scan.devices_found)
                 )
                 scan_id = cursor.lastrowid
 
-                # 2. Actualizar inventario e insertar presencia
-                for d in devices:
-                    ip = d.get('ip')
-                    mac = d.get('mac', 'N/A')
-                    hostname = d.get('hostname', 'Desconocido')
-                    vendor = d.get('vendor', '')
-                    latency = d.get('latency_ms', 0.0)
+                # 2. Update inventory and insert presence
+                for d in scan.devices:
+                    ip = d.ip
+                    mac = d.mac
+                    hostname = d.hostname
+                    vendor = d.vendor
+                    latency = d.latency_ms or 0.0
 
-                    # Usar MAC o IP como fallback si no hay MAC
+                    # Use MAC or IP fallback
                     identifier = mac if mac != 'N/A' else f"IP-{ip}"
 
-                    # Hacer un upsert en devices
+                    # Upsert on devices
                     cursor.execute('''
                         INSERT INTO devices (mac, ip, hostname, vendor, first_seen, last_seen)
                         VALUES (?, ?, ?, ?, ?, ?)
                         ON CONFLICT(mac) DO UPDATE SET
                             ip=excluded.ip,
-                            hostname=CASE WHEN excluded.hostname != 'Desconocido' THEN excluded.hostname ELSE devices.hostname END,
+                            hostname=CASE 
+                                WHEN excluded.hostname != 'Unknown' THEN excluded.hostname 
+                                ELSE devices.hostname 
+                            END,
                             last_seen=excluded.last_seen
                     ''', (identifier, ip, hostname, vendor, now, now))
 
-                    # Registrar la presencia en este escaneo
+                    # Log presence
                     cursor.execute('''
                         INSERT INTO device_presence (scan_id, mac, ip, latency_ms)
                         VALUES (?, ?, ?, ?)
@@ -114,22 +118,22 @@ class DatabaseManager:
                 conn.commit()
             return True
         except Exception as e:
-            print(f"Error guardando escaneo en BD: {e}")
+            print(f"Error saving scan to DB: {e}")
             return False
 
     def get_recent_scans(self, limit: int = 5) -> List[Dict]:
-        """Obtiene el historial de los últimos escaneos."""
+        """Gets history of recent scans."""
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM scan_history ORDER BY id DESC LIMIT ?", (limit,))
             return [dict(row) for row in cursor.fetchall()]
 
     def get_inventory(self) -> List[Dict]:
-        """Obtiene el inventario completo de dispositivos."""
+        """Gets complete device inventory."""
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM devices ORDER BY last_seen DESC")
             return [dict(row) for row in cursor.fetchall()]
 
-# Instancia global por defecto
+# Global default instance
 db = DatabaseManager()

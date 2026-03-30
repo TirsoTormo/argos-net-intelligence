@@ -1,9 +1,9 @@
 # pylint: disable=broad-exception-caught, import-outside-toplevel, disable=line-too-long
 """
-Argos — Modulo de Actualizacion Automatica
+Argos — Automatic Update Module
 ===========================================
-Revisa version.txt remota en el repositorio de GitHub y compara con la local.
-Muestra un panel magenta interactivo si hay actualizacion y utiliza git pull para aplicarla.
+Checks remote version.txt in the GitHub repository and compares it with the local one.
+Shows an interactive panel if an update is available and uses git pull to apply it.
 """
 
 import os
@@ -14,9 +14,9 @@ from rich.panel import Panel
 from rich.prompt import Prompt
 from rich import box
 
-# Importar colores corporativos Elite Purple
+# Import corporate Elite Purple colors
 try:
-    from ui.theme import (
+    from argos.ui.theme import (
         ARGOS_PRIMARY_BOLD,
         ARGOS_PRIMARY,
         ARGOS_WHITE,
@@ -40,16 +40,16 @@ LOCAL_VERSION_FILE = os.path.join(PROJECT_ROOT, "version.txt")
 
 
 def get_local_version() -> str:
-    """Lee la versión local desde version.txt."""
+    """Reads the local version from version.txt."""
     if not os.path.exists(LOCAL_VERSION_FILE):
-        return "1.0.0"  # Fallback si no existe
+        return "1.0.0"  # Fallback if it doesn't exist
 
     with open(LOCAL_VERSION_FILE, "r", encoding="utf-8") as f:
         return f.read().strip()
 
 
 def parse_version(v: str) -> tuple:
-    """Convierte un string de version '1.0.0' en tupla de enteros (1,0,0) para comparar."""
+    """Converts a version string '1.0.0' into a tuple of integers (1,0,0) for comparison."""
     try:
         return tuple(int(x) for x in v.split("."))
     except ValueError:
@@ -57,47 +57,47 @@ def parse_version(v: str) -> tuple:
 
 
 def check_for_updates():
-    """Consulta version remota en GitHub y promtea al usuario si hay una mas nueva."""
+    """Checks remote version on GitHub and prompts the user if a newer one exists."""
     try:
         import requests
     except ImportError:
-        # Se ignora silenciosamente si falta la libreria
+        # Silently ignore if library is missing
         return
 
     local_ver = get_local_version()
 
     try:
-        # Peticion rapida, timeout corto para no ralentizar el arranque
+        # Fast request, short timeout to not slow down startup
         response = requests.get(REPO_URL, timeout=3)
         if response.status_code == 200:
             remote_ver = response.text.strip()
 
-            # Comparar versiones
+            # Compare versions
             if parse_version(remote_ver) > parse_version(local_ver):
                 _show_update_panel(local_ver, remote_ver)
     except Exception:
-        # Falla silenciosamente si no hay internet o error de red
+        # Silently fail if no internet or network error
         pass
 
 
 def _show_update_panel(local_ver: str, remote_ver: str):
-    """Muestra el panel visual magenta avisando de nueva version."""
+    """Shows the visual panel notifying about a new version."""
 
     panel_text = (
-        f"[{ARGOS_WHITE}]Se ha detectado una nueva version de Argos "
-        f"disponible en GitHub.[/{ARGOS_WHITE}]\n\n"
-        f"  [{ARGOS_DIM}]Version Local:[/{ARGOS_DIM}]   "
+        f"[{ARGOS_WHITE}]A new version of Argos has been detected "
+        f"available on GitHub.[/{ARGOS_WHITE}]\n\n"
+        f"  [{ARGOS_DIM}]Local Version:[/{ARGOS_DIM}]   "
         f"[{ARGOS_WHITE}]v{local_ver}[/{ARGOS_WHITE}]\n"
-        f"  [{ARGOS_DIM}]Version Remota:[/{ARGOS_DIM}]  "
+        f"  [{ARGOS_DIM}]Remote Version:[/{ARGOS_DIM}]  "
         f"[{ARGOS_SUCCESS_BOLD}]v{remote_ver}[/{ARGOS_SUCCESS_BOLD}]\n\n"
-        f"[{ARGOS_PRIMARY}]¿Desea actualizar ahora usando git pull?[/{ARGOS_PRIMARY}]"
+        f"[{ARGOS_PRIMARY}]Do you want to update now using git pull?[/{ARGOS_PRIMARY}]"
     )
 
     console.print()
     console.print(
         Panel(
             panel_text,
-            title=f"[{ARGOS_PRIMARY_BOLD}]:: ACTUALIZACION DE ARGOS DISPONIBLE ::[/{ARGOS_PRIMARY_BOLD}]",
+            title=f"[{ARGOS_PRIMARY_BOLD}]:: ARGOS UPDATE AVAILABLE ::[/{ARGOS_PRIMARY_BOLD}]",
             border_style=ARGOS_PRIMARY,
             box=box.DOUBLE,
             padding=(1, 2),
@@ -105,45 +105,45 @@ def _show_update_panel(local_ver: str, remote_ver: str):
     )
 
     respuesta = Prompt.ask(
-        f"[{ARGOS_PRIMARY}]Argos > Update[/{ARGOS_PRIMARY}]", choices=["s", "n"], default="n"
+        f"[{ARGOS_PRIMARY}]Argos > Update[/{ARGOS_PRIMARY}]", choices=["y", "n"], default="n"
     )
 
-    if respuesta.lower() == "s":
+    if respuesta.lower() == "y":
         _apply_update()
 
 
 def _apply_update():
-    """Ejecuta los comandos de sistema para actualizar desde git."""
-    console.print(f"\n  [{ARGOS_PRIMARY}]>> Iniciando actualizacion via git...[/{ARGOS_PRIMARY}]")
+    """Executes system commands to update from git."""
+    console.print(f"\n  [{ARGOS_PRIMARY}]>> Starting update via git...[/{ARGOS_PRIMARY}]")
 
     try:
-        # Nos movemos a la raiz del proyecto antes de hacer git pull
+        # Move to project root before doing git pull
         os.chdir(PROJECT_ROOT)
         result = subprocess.run(["git", "pull"], capture_output=True, text=True, check=True)
 
         console.print(
-            f"  [{ARGOS_SUCCESS_BOLD}]+ Actualizacion completada "
-            f"correctamente.[/{ARGOS_SUCCESS_BOLD}]"
+            f"  [{ARGOS_SUCCESS_BOLD}]+ Update completed "
+            f"successfully.[/{ARGOS_SUCCESS_BOLD}]"
         )
-        console.print(f"  [{ARGOS_DIM}]Salida de git:[/{ARGOS_DIM}]\n{result.stdout.strip()}")
+        console.print(f"  [{ARGOS_DIM}]Git output:[/{ARGOS_DIM}]\n{result.stdout.strip()}")
 
         console.print(
-            f"\n  [{ARGOS_WHITE}]Por favor reinicia Argos para "
-            f"aplicar los cambios.[/{ARGOS_WHITE}]"
+            f"\n  [{ARGOS_WHITE}]Please restart Argos to "
+            f"apply changes.[/{ARGOS_WHITE}]"
         )
         sys.exit(0)
     except FileNotFoundError:
         console.print(
-            f"  [{ARGOS_ERROR_BOLD}]X Error: Git no esta instalado "
-            f"o no se encuentra en el PATH.[/{ARGOS_ERROR_BOLD}]"
+            f"  [{ARGOS_ERROR_BOLD}]X Error: Git is not installed "
+            f"or not found in PATH.[/{ARGOS_ERROR_BOLD}]"
         )
     except subprocess.CalledProcessError as e:
         console.print(
-            f"  [{ARGOS_ERROR_BOLD}]X Error aplicando actualizacion "
-            f"(git pull faliido):[/{ARGOS_ERROR_BOLD}]"
+            f"  [{ARGOS_ERROR_BOLD}]X Error applying update "
+            f"(git pull failed):[/{ARGOS_ERROR_BOLD}]"
         )
         console.print(f"  [{ARGOS_DIM}]{e.stderr.strip()}[/{ARGOS_DIM}]")
     except Exception as e:
-        console.print(f"  [{ARGOS_ERROR_BOLD}]X Error inesperado:[/{ARGOS_ERROR_BOLD}] {e}")
+        console.print(f"  [{ARGOS_ERROR_BOLD}]X Unexpected error:[/{ARGOS_ERROR_BOLD}] {e}")
 
     console.print()

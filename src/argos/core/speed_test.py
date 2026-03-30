@@ -1,11 +1,11 @@
 # pylint: disable=broad-exception-caught, too-many-locals, too-many-branches, too-many-statements, too-few-public-methods
 """
-NetScanner - Módulo de Test de Velocidad LAN
-Mide la velocidad de transferencia entre dos equipos de la red local
-usando comunicación TCP directa (sin salir a Internet).
+NetScanner - LAN Speed Test Module
+Measures transfer speed between two computers on the local network
+using direct TCP communication (without going out to the Internet).
 
-Modo Servidor: Recibe datos y reporta throughput.
-Modo Cliente: Envía datos al servidor y mide velocidad en Mbps.
+Server Mode: Receives data and reports throughput.
+Client Mode: Sends data to the server and measures speed in Mbps.
 """
 
 import socket
@@ -15,16 +15,16 @@ import threading
 import json
 from typing import Dict, Optional, Callable
 
-from core.net_utils import is_private_ip
+from argos.core.net_utils import is_private_ip
 
-# Protocolo de comunicación
-HEADER_SIZE = 8  # 8 bytes para el header (tamaño del mensaje)
-DEFAULT_PORT = 45678  # Puerto por defecto del servidor
-BLOCK_SIZE = 65536  # 64 KB por bloque de transmisión
-DEFAULT_DURATION = 10  # Duración por defecto del test en segundos
-BUFFER_SIZE = 131072  # 128 KB buffer de recepción
+# Communication Protocol
+HEADER_SIZE = 8  # 8 bytes for header (message size)
+DEFAULT_PORT = 45678  # Default server port
+BLOCK_SIZE = 65536  # 64 KB per transmission block
+DEFAULT_DURATION = 10  # Default test duration in seconds
+BUFFER_SIZE = 131072  # 128 KB receive buffer
 
-# Mensajes de control
+# Control Messages
 MSG_START = b"START___"
 MSG_DONE = b"DONE____"
 MSG_RESULT = b"RESULT__"
@@ -32,8 +32,8 @@ MSG_RESULT = b"RESULT__"
 
 class SpeedTestServer:
     """
-    Servidor TCP para recibir datos del cliente y medir throughput.
-    Se ejecuta en un hilo separado.
+    TCP Server to receive data from client and measure throughput.
+    Runs in a separate thread.
     """
 
     def __init__(self, port: int = DEFAULT_PORT, status_callback: Optional[Callable] = None):
@@ -49,29 +49,27 @@ class SpeedTestServer:
             self.status_callback(msg)
 
     def start(self):
-        """Inicia el servidor en un hilo separado."""
+        """Starts the server in a separate thread."""
         self.running = True
         self._thread = threading.Thread(target=self._run, daemon=True)
         self._thread.start()
 
     def _run(self):
-        """Loop principal del servidor."""
+        """Main server loop."""
         try:
             self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            # Buffer grande para máximo rendimiento
+            # Large buffer for maximum performance
             self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, BUFFER_SIZE * 4)
-            self.server_socket.settimeout(1.0)  # Timeout para permitir parada limpia
+            self.server_socket.settimeout(1.0)  # Timeout to allow clean stop
             self.server_socket.bind(("0.0.0.0", self.port))
             self.server_socket.listen(1)
-
-            self._log(f"Servidor escuchando en puerto {self.port}...")
-            self._log("Esperando conexión del cliente...")
-
+            self._log(f"Server listening on port {self.port}...")
+            self._log("Waiting for client connection...")
             while self.running:
                 try:
                     client_socket, client_addr = self.server_socket.accept()
-                    self._log(f"Cliente conectado: {client_addr[0]}:{client_addr[1]}")
+                    self._log(f"Client connected: {client_addr[0]}:{client_addr[1]}")
                     self._handle_client(client_socket, client_addr)
                 except socket.timeout:
                     continue
@@ -79,22 +77,22 @@ class SpeedTestServer:
                     break
 
         except OSError as e:
-            self._log(f"Error del servidor: {e}")
+            self._log(f"Server error: {e}")
         finally:
             self._cleanup()
 
     def _handle_client(self, client_socket: socket.socket, client_addr: tuple):
-        """Maneja una conexión de cliente y mide el throughput."""
+        """Handles a client connection and measures throughput."""
         try:
             client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, BUFFER_SIZE * 4)
 
-            # Esperar señal de inicio
+            # Wait for start signal
             start_msg = client_socket.recv(8)
             if start_msg != MSG_START:
-                self._log("Mensaje de inicio inválido")
+                self._log("Invalid start message")
                 return
 
-            self._log("Test de velocidad iniciado — recibiendo datos...")
+            self._log("Speed test started — receiving data...")
 
             total_bytes = 0
             start_time = time.perf_counter()
@@ -104,7 +102,7 @@ class SpeedTestServer:
                 if not data:
                     break
 
-                # Verificar señal de fin
+                # Check for end signal
                 if data[-8:] == MSG_DONE:
                     total_bytes += len(data) - 8
                     break
@@ -113,7 +111,7 @@ class SpeedTestServer:
 
             elapsed = time.perf_counter() - start_time
 
-            # Calcular resultados
+            # Calculate results
             speed_mbps = (total_bytes * 8) / (elapsed * 1_000_000) if elapsed > 0 else 0
             speed_mbs = total_bytes / (elapsed * 1_000_000) if elapsed > 0 else 0
 
@@ -127,26 +125,24 @@ class SpeedTestServer:
 
             self.last_result = result
 
-            # Enviar resultado al cliente
+            # Send result to client
             result_json = json.dumps(result).encode("utf-8")
             client_socket.sendall(MSG_RESULT + struct.pack("!I", len(result_json)) + result_json)
-
-            self._log(f"Test completado: {speed_mbps:.2f} Mbps ({speed_mbs:.2f} MB/s)")
-
+            self._log(f"Test completed: {speed_mbps:.2f} Mbps ({speed_mbs:.2f} MB/s)")
         except Exception as e:
-            self._log(f"Error manejando cliente: {e}")
+            self._log(f"Error handling client: {e}")
         finally:
             client_socket.close()
 
     def stop(self):
-        """Detiene el servidor."""
+        """Stops the server."""
         self.running = False
         if self._thread:
             self._thread.join(timeout=3)
         self._cleanup()
 
     def _cleanup(self):
-        """Cierra el socket del servidor."""
+        """Closes the server socket."""
         if self.server_socket:
             try:
                 self.server_socket.close()
@@ -157,7 +153,7 @@ class SpeedTestServer:
 
 class SpeedTestClient:
     """
-    Cliente TCP para enviar datos al servidor y medir throughput.
+    TCP Client to send data to server and measure throughput.
     """
 
     def __init__(self, status_callback: Optional[Callable] = None):
@@ -175,78 +171,67 @@ class SpeedTestClient:
         progress_callback: Optional[Callable] = None,
     ) -> Optional[Dict]:
         """
-        Ejecuta un test de velocidad contra el servidor.
+        Runs a speed test against the server.
 
         Args:
-            server_ip: IP del servidor
-            port: Puerto del servidor
-            duration: Duración del test en segundos
+            server_ip: Server IP
+            port: Server port
+            duration: Test duration in seconds
             progress_callback: Callback (msg, percentage)
 
         Returns:
-            Diccionario con resultados o None si falla
+            Dictionary with results or None if fails
         """
-        # Verificar que es IP privada (seguridad: nunca salir a Internet)
+        # Verify it's a private IP (security: never go to Internet)
         if not is_private_ip(server_ip):
-            self._log(f"ERROR: {server_ip} no es una IP privada. Operación abortada.")
+            self._log(f"ERROR: {server_ip} is not a private IP. Operation aborted.")
             return None
-
         sock = None
         try:
-            self._log(f"Conectando a {server_ip}:{port}...")
+            self._log(f"Connecting to {server_ip}:{port}...")
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, BUFFER_SIZE * 4)
             sock.settimeout(10)
             sock.connect((server_ip, port))
-
-            self._log("Conexión establecida")
-
-            # Enviar señal de inicio
+            self._log("Connection established")
+            # Send start signal
             sock.sendall(MSG_START)
-
-            # Generar bloque de datos aleatorios
+            # Generate random data block
             data_block = b"\x00" * BLOCK_SIZE
-
-            self._log(f"Enviando datos durante {duration} segundos...")
-
+            self._log(f"Sending data for {duration} seconds...")
             total_bytes = 0
             start_time = time.perf_counter()
             last_report = start_time
-
             while True:
                 elapsed = time.perf_counter() - start_time
                 if elapsed >= duration:
                     break
-
                 try:
                     sock.sendall(data_block)
                     total_bytes += BLOCK_SIZE
                 except (BrokenPipeError, ConnectionResetError):
                     break
-
-                # Reportar progreso cada 0.5 segundos
+                # Report progress every 0.5 seconds
                 now = time.perf_counter()
                 if now - last_report >= 0.5:
                     pct = elapsed / duration
                     current_speed = (total_bytes * 8) / (elapsed * 1_000_000)
                     if progress_callback:
                         progress_callback(
-                            f"Velocidad actual: {current_speed:.1f} Mbps", min(pct, 0.99)
+                            f"Current speed: {current_speed:.1f} Mbps", min(pct, 0.99)
                         )
                     last_report = now
-
-            # Enviar señal de fin
+            # Send end signal
             sock.sendall(MSG_DONE)
-
             total_elapsed = time.perf_counter() - start_time
 
-            # Calcular resultados del lado del cliente
+            # Calculate client-side results
             client_speed_mbps = (
                 (total_bytes * 8) / (total_elapsed * 1_000_000) if total_elapsed > 0 else 0
             )
             client_speed_mbs = total_bytes / (total_elapsed * 1_000_000) if total_elapsed > 0 else 0
 
-            # Intentar recibir resultados del servidor
+            # Attempt to receive results from server
             server_result = None
             try:
                 sock.settimeout(5)
@@ -262,7 +247,6 @@ class SpeedTestClient:
                     server_result = json.loads(result_data.decode("utf-8"))
             except Exception:
                 pass
-
             result = {
                 "server_ip": server_ip,
                 "port": port,
@@ -272,24 +256,20 @@ class SpeedTestClient:
                 "client_speed_mbps": round(client_speed_mbps, 2),
                 "client_speed_mbs": round(client_speed_mbs, 2),
             }
-
             if server_result:
                 result["server_speed_mbps"] = server_result.get("speed_mbps", 0)
                 result["server_speed_mbs"] = server_result.get("speed_mbs", 0)
-
             if progress_callback:
-                progress_callback("Test completado", 1.0)
-
+                progress_callback("Test completed", 1.0)
             self._log(
-                f"Test completado: {client_speed_mbps:.2f} Mbps ({client_speed_mbs:.2f} MB/s)"
+                f"Test completed: {client_speed_mbps:.2f} Mbps ({client_speed_mbs:.2f} MB/s)"
             )
             return result
-
         except socket.timeout:
-            self._log(f"Timeout: No se pudo conectar a {server_ip}:{port}")
+            self._log(f"Timeout: Could not connect to {server_ip}:{port}")
             return None
         except ConnectionRefusedError:
-            self._log(f"Conexión rechazada: ¿Está el servidor ejecutándose en {server_ip}:{port}?")
+            self._log(f"Connection refused: Is the server running on {server_ip}:{port}?")
             return None
         except Exception as e:
             self._log(f"Error: {e}")
@@ -304,15 +284,15 @@ class SpeedTestClient:
 
 def quick_latency_test(target_ip: str, count: int = 5) -> Optional[Dict]:
     """
-    Test rápido de latencia TCP contra un host.
-    Abre y cierra conexiones para medir RTT.
+    Quick TCP latency test against a host.
+    Opens and closes connections to measure RTT.
 
     Args:
-        target_ip: IP destino
-        count: Número de intentos
+        target_ip: Destination IP
+        count: Number of attempts
 
     Returns:
-        Diccionario con min/avg/max/jitter en ms
+        Dictionary with min/avg/max/jitter in ms
     """
     if not is_private_ip(target_ip):
         return None

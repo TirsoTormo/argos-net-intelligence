@@ -1,0 +1,47 @@
+[project]
+name = "argos"
+version = "2.0.0"
+description = "Argos Network Intelligence Pro"
+requires-python = ">=3.12"
+dependencies = [
+    "rich",
+    "psutil",
+    "scapy",
+    "requests",
+    "pydantic",
+    "pydantic-settings",
+    "aiohttp",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "ruff",
+    "mypy",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "SIM", # flake8-simplify
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["argos"]
+
+[tool.mypy]
+strict = true
+python_version = "3.12"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

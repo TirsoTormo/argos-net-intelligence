@@ -1,10 +1,11 @@
 # pylint: disable=line-too-long
 """
-Argos — Modulo de Reportes Visuales (Elite Purple Edition)
-Tablas y paneles con paleta morada corporativa. Sin emojis.
+Argos — Visual Reports Module (Elite Purple Edition)
+Tables and panels with corporate purple palette. No emojis.
 """
 
-from typing import List, Dict
+from typing import List, Dict, Any, Optional
+from argos.core.models import DeviceModel
 
 from rich.table import Table
 from rich.panel import Panel
@@ -12,25 +13,28 @@ from rich.live import Live
 from rich import box
 import time
 
-from ui.theme import (
+from argos.ui.theme import (
     ARGOS_PRIMARY,
     ARGOS_PRIMARY_BOLD,
     ARGOS_WHITE,
     ARGOS_DIM,
     ARGOS_MUTED,
     ARGOS_SUCCESS,
+    ARGOS_SUCCESS_BOLD,
     ARGOS_ERROR,
+    ARGOS_ERROR_BOLD,
     ARGOS_WARN,
+    ARGOS_WARN_BOLD,
     format_latency,
     format_port_status,
 )
 
 
-def create_device_table(devices: List[Dict], scan_method: str = "", _local_ip: str = "") -> Table:
-    """Tabla de dispositivos descubiertos."""
-    title = f"DISPOSITIVOS DESCUBIERTOS ({len(devices)})"
+def create_device_table(devices: List[DeviceModel], scan_method: str = "", _local_ip: str = "") -> Table:
+    """Table of discovered devices."""
+    title = f"DISCOVERED DEVICES ({len(devices)})"
     if scan_method:
-        title += f"  ::  Metodo: {scan_method}"
+        title += f"  ::  Method: {scan_method}"
 
     table = Table(
         title=title,
@@ -39,37 +43,37 @@ def create_device_table(devices: List[Dict], scan_method: str = "", _local_ip: s
         header_style=f"bold {ARGOS_WHITE} on #2D002D",
         show_lines=True,
         padding=(0, 1),
-        box=box.SQUARE_DOUBLE_HEADED,
+        box=box.SQUARE_DOUBLE_HEAD,
     )
 
     table.add_column("#", style=ARGOS_DIM, width=4, justify="center")
     table.add_column("IP", style=ARGOS_WHITE, width=16)
     table.add_column("MAC", style=ARGOS_WHITE, width=19)
     table.add_column("Hostname", style=ARGOS_WHITE, width=28)
-    table.add_column("Latencia", width=12, justify="right")
-    table.add_column("Fabricante", style=ARGOS_MUTED, width=15)
+    table.add_column("Latency", width=12, justify="right")
+    table.add_column("Vendor", style=ARGOS_MUTED, width=15)
 
     for i, device in enumerate(devices, 1):
-        ip = device["ip"]
-        mac = device.get("mac", "N/A")
-        hostname = device.get("hostname", "Desconocido")
-        latency = device.get("latency_ms")
-        vendor = device.get("vendor", "")
+        ip = device.ip
+        mac = device.mac
+        hostname = device.hostname
+        latency = device.latency_ms
+        vendor = device.vendor
 
         lat_str = format_latency(latency)
 
-        if hostname == "Desconocido" and ip.endswith(".1"):
+        if hostname == "Unknown" and ip.endswith(".1"):
             hostname = f"[{ARGOS_WARN}]>> Gateway (probable)[/{ARGOS_WARN}]"
 
         table.add_row(str(i), ip, mac, hostname, lat_str, vendor)
 
     return table
 
-def display_animated_device_table(console, devices: List[Dict], scan_method: str = "", _local_ip: str = ""):
-    """Muestra la tabla de dispositivos con animación estilo Matrix."""
-    title = f"DISPOSITIVOS DESCUBIERTOS ({len(devices)})"
+def display_animated_device_table(console, devices: List[DeviceModel], scan_method: str = "", _local_ip: str = ""):
+    """Displays the device table with Matrix-style animation."""
+    title = f"DISCOVERED DEVICES ({len(devices)})"
     if scan_method:
-        title += f"  ::  Metodo: {scan_method}"
+        title += f"  ::  Method: {scan_method}"
 
     table = Table(
         title=title,
@@ -78,27 +82,27 @@ def display_animated_device_table(console, devices: List[Dict], scan_method: str
         header_style=f"bold {ARGOS_WHITE} on #2D002D",
         show_lines=True,
         padding=(0, 1),
-        box=box.SQUARE_DOUBLE_HEADED,
+        box=box.SQUARE_DOUBLE_HEAD,
     )
 
     table.add_column("#", style=ARGOS_DIM, width=4, justify="center")
     table.add_column("IP", style=ARGOS_WHITE, width=16)
     table.add_column("MAC", style=ARGOS_WHITE, width=19)
     table.add_column("Hostname", style=ARGOS_WHITE, width=28)
-    table.add_column("Latencia", width=12, justify="right")
-    table.add_column("Fabricante", style=ARGOS_MUTED, width=15)
+    table.add_column("Latency", width=12, justify="right")
+    table.add_column("Vendor", style=ARGOS_MUTED, width=15)
 
     with Live(table, console=console, refresh_per_second=15, vertical_overflow="visible") as live:
         for i, device in enumerate(devices, 1):
-            ip = device["ip"]
-            mac = device.get("mac", "N/A")
-            hostname = device.get("hostname", "Desconocido")
-            latency = device.get("latency_ms")
-            vendor = device.get("vendor", "")
+            ip = device.ip
+            mac = device.mac
+            hostname = device.hostname
+            latency = device.latency_ms
+            vendor = device.vendor
 
             lat_str = format_latency(latency)
 
-            if hostname == "Desconocido" and ip.endswith(".1"):
+            if hostname == "Unknown" and ip.endswith(".1"):
                 hostname = f"[{ARGOS_WARN}]>> Gateway (probable)[/{ARGOS_WARN}]"
 
             table.add_row(str(i), ip, mac, hostname, lat_str, vendor)
@@ -106,24 +110,24 @@ def display_animated_device_table(console, devices: List[Dict], scan_method: str
 
 
 def create_interface_table(interfaces: List[Dict]) -> Table:
-    """Tabla de interfaces de red."""
+    """Network interfaces table."""
     table = Table(
-        title="INTERFACES DE RED",
+        title="NETWORK INTERFACES",
         title_style=ARGOS_PRIMARY_BOLD,
         border_style=ARGOS_PRIMARY,
         header_style=f"bold {ARGOS_WHITE} on #2D002D",
         show_lines=True,
         padding=(0, 1),
-        box=box.SQUARE_DOUBLE_HEADED,
+        box=box.SQUARE_DOUBLE_HEAD,
     )
 
     table.add_column("#", style=ARGOS_DIM, width=4, justify="center")
-    table.add_column("Nombre", style=ARGOS_WHITE, width=30)
-    table.add_column("Tipo", style=ARGOS_PRIMARY, width=14)
+    table.add_column("Name", style=ARGOS_WHITE, width=30)
+    table.add_column("Type", style=ARGOS_PRIMARY, width=14)
     table.add_column("IP", style=ARGOS_WHITE, width=16)
-    table.add_column("Mascara", style=ARGOS_MUTED, width=16)
+    table.add_column("Mask", style=ARGOS_MUTED, width=16)
     table.add_column("MAC", style=ARGOS_WHITE, width=19)
-    table.add_column("Estado", width=10, justify="center")
+    table.add_column("Status", width=10, justify="center")
 
     for i, iface in enumerate(interfaces, 1):
         status = (
@@ -145,19 +149,19 @@ def create_interface_table(interfaces: List[Dict]) -> Table:
 
 
 def create_speed_result_panel(result: Dict) -> Panel:
-    """Panel de resultados del speed test."""
+    """Speed test results panel."""
     lines = []
 
     lines.append(
-        f"  [{ARGOS_DIM}]Servidor:[/{ARGOS_DIM}]    [{ARGOS_WHITE}]"
+        f"  [{ARGOS_DIM}]Server:[/{ARGOS_DIM}]    [{ARGOS_WHITE}]"
         f"{result.get('server_ip', 'N/A')}:{result.get('port', 'N/A')}[/{ARGOS_WHITE}]"
     )
     lines.append(
-        f"  [{ARGOS_DIM}]Duracion:[/{ARGOS_DIM}]    [{ARGOS_WHITE}]"
+        f"  [{ARGOS_DIM}]Duration:[/{ARGOS_DIM}]  [{ARGOS_WHITE}]"
         f"{result.get('duration_s', 0)} s[/{ARGOS_WHITE}]"
     )
     lines.append(
-        f"  [{ARGOS_DIM}]Transferido:[/{ARGOS_DIM}] [{ARGOS_WHITE}]"
+        f"  [{ARGOS_DIM}]Transferred:[/{ARGOS_DIM}] [{ARGOS_WHITE}]"
         f"{result.get('total_MB', 0)} MB[/{ARGOS_WHITE}]"
     )
     lines.append("")
@@ -167,27 +171,27 @@ def create_speed_result_panel(result: Dict) -> Panel:
 
     if speed_mbps >= 900:
         color = ARGOS_SUCCESS
-        rating = "EXCELENTE (Gigabit)"
+        rating = "EXCELLENT (Gigabit)"
     elif speed_mbps >= 400:
         color = ARGOS_SUCCESS
-        rating = "BUENA"
+        rating = "GOOD"
     elif speed_mbps >= 100:
         color = ARGOS_WARN
-        rating = "ACEPTABLE"
+        rating = "ACCEPTABLE"
     elif speed_mbps >= 10:
         color = ARGOS_ERROR
-        rating = "LENTA"
+        rating = "SLOW"
     else:
         color = ARGOS_ERROR
-        rating = "MUY LENTA"
+        rating = "VERY SLOW"
 
-    lines.append(f"  [{color}]  >> Velocidad: {speed_mbps} Mbps  ({speed_mbs} MB/s)[/{color}]")
+    lines.append(f"  [{color}]  >> Speed: {speed_mbps} Mbps  ({speed_mbs} MB/s)[/{color}]")
     lines.append(f"  [{color}]  >> Rating: {rating}[/{color}]")
     lines.append("")
 
     if "server_speed_mbps" in result:
         lines.append(
-            f"  [{ARGOS_DIM}]Servidor mide:[/{ARGOS_DIM}]  [{ARGOS_WHITE}]"
+            f"  [{ARGOS_DIM}]Server measures:[/{ARGOS_DIM}]  [{ARGOS_WHITE}]"
             f"{result['server_speed_mbps']} Mbps ({result.get('server_speed_mbs', 0)} MB/s)"
             f"[/{ARGOS_WHITE}]"
         )
@@ -205,27 +209,27 @@ def create_speed_result_panel(result: Dict) -> Panel:
         title=f"[{ARGOS_PRIMARY_BOLD}]SPEED TEST RESULTS[/{ARGOS_PRIMARY_BOLD}]",
         border_style=ARGOS_PRIMARY,
         padding=(1, 2),
-        box=box.SQUARE_DOUBLE_HEADED,
+        box=box.SQUARE_DOUBLE_HEAD,
     )
 
 
 def create_scan_summary(
-    devices: List[Dict], scan_method: str, duration: float, network_cidr: str
+    devices: List[DeviceModel], scan_method: str, duration: float, network_cidr: str
 ) -> Panel:
-    """Panel resumen del escaneo."""
+    """Scan summary panel."""
     total = len(devices)
-    with_hostname = sum(1 for d in devices if d.get("hostname", "Desconocido") != "Desconocido")
+    with_hostname = sum(1 for d in devices if d.hostname != "Unknown")
 
-    latencies = [d["latency_ms"] for d in devices if d.get("latency_ms") is not None]
+    latencies = [d.latency_ms for d in devices if d.latency_ms is not None]
     avg_latency = sum(latencies) / len(latencies) if latencies else 0
 
     lines = [
-        f"  [{ARGOS_DIM}]Red escaneada:[/{ARGOS_DIM}]  [{ARGOS_WHITE}]{network_cidr}[/{ARGOS_WHITE}]",
-        f"  [{ARGOS_DIM}]Metodo:[/{ARGOS_DIM}]         [{ARGOS_WHITE}]{scan_method}[/{ARGOS_WHITE}]",
-        f"  [{ARGOS_DIM}]Tiempo:[/{ARGOS_DIM}]         [{ARGOS_WHITE}]{duration:.1f} s[/{ARGOS_WHITE}]",
-        f"  [{ARGOS_DIM}]Dispositivos:[/{ARGOS_DIM}]   [{ARGOS_SUCCESS}]{total}[/{ARGOS_SUCCESS}]",
-        f"  [{ARGOS_DIM}]Con hostname:[/{ARGOS_DIM}]   [{ARGOS_WHITE}]{with_hostname}[/{ARGOS_WHITE}]",
-        f"  [{ARGOS_DIM}]Latencia media:[/{ARGOS_DIM}] [{ARGOS_WHITE}]{avg_latency:.1f} ms[/{ARGOS_WHITE}]",
+        f"  [{ARGOS_DIM}]Scanned Network:[/{ARGOS_DIM}]  [{ARGOS_WHITE}]{network_cidr}[/{ARGOS_WHITE}]",
+        f"  [{ARGOS_DIM}]Method:[/{ARGOS_DIM}]         [{ARGOS_WHITE}]{scan_method}[/{ARGOS_WHITE}]",
+        f"  [{ARGOS_DIM}]Time:[/{ARGOS_DIM}]           [{ARGOS_WHITE}]{duration:.1f} s[/{ARGOS_WHITE}]",
+        f"  [{ARGOS_DIM}]Devices:[/{ARGOS_DIM}]        [{ARGOS_SUCCESS}]{total}[/{ARGOS_SUCCESS}]",
+        f"  [{ARGOS_DIM}]With hostname:[/{ARGOS_DIM}]   [{ARGOS_WHITE}]{with_hostname}[/{ARGOS_WHITE}]",
+        f"  [{ARGOS_DIM}]Avg Latency:[/{ARGOS_DIM}]     [{ARGOS_WHITE}]{avg_latency:.1f} ms[/{ARGOS_WHITE}]",
     ]
 
     return Panel(
@@ -233,12 +237,12 @@ def create_scan_summary(
         title=f"[{ARGOS_PRIMARY_BOLD}]SCAN SUMMARY[/{ARGOS_PRIMARY_BOLD}]",
         border_style=ARGOS_PRIMARY,
         padding=(1, 2),
-        box=box.SQUARE_DOUBLE_HEADED,
+        box=box.SQUARE_DOUBLE_HEAD,
     )
 
 
 def create_port_table(results: List[Dict]) -> Table:
-    """Tabla de resultados de port scan."""
+    """Port scan results table."""
     table = Table(
         title="PORT SCAN RESULTS",
         title_style=ARGOS_PRIMARY_BOLD,
@@ -246,12 +250,12 @@ def create_port_table(results: List[Dict]) -> Table:
         header_style=f"bold {ARGOS_WHITE} on #2D002D",
         show_lines=True,
         padding=(0, 1),
-        box=box.SQUARE_DOUBLE_HEADED,
+        box=box.SQUARE_DOUBLE_HEAD,
     )
 
-    table.add_column("Puerto", style=ARGOS_WHITE, width=8, justify="right")
-    table.add_column("Servicio", style=ARGOS_PRIMARY, width=12)
-    table.add_column("Estado", width=18)
+    table.add_column("Port", style=ARGOS_WHITE, width=8, justify="right")
+    table.add_column("Service", style=ARGOS_PRIMARY, width=12)
+    table.add_column("Status", width=18)
     table.add_column("Flags", style=ARGOS_MUTED, width=10)
     table.add_column("Banner / Info", style=ARGOS_WHITE, width=32)
 
@@ -268,7 +272,7 @@ def create_port_table(results: List[Dict]) -> Table:
 
 
 def create_traceroute_table(hops: List[Dict]) -> Table:
-    """Tabla de traceroute."""
+    """Traceroute table."""
     table = Table(
         title="TRACEROUTE",
         title_style=ARGOS_PRIMARY_BOLD,
@@ -276,13 +280,13 @@ def create_traceroute_table(hops: List[Dict]) -> Table:
         header_style=f"bold {ARGOS_WHITE} on #2D002D",
         show_lines=True,
         padding=(0, 1),
-        box=box.SQUARE_DOUBLE_HEADED,
+        box=box.SQUARE_DOUBLE_HEAD,
     )
 
     table.add_column("TTL", style=ARGOS_PRIMARY, width=5, justify="center")
     table.add_column("IP", style=ARGOS_WHITE, width=16)
-    table.add_column("Latencia", width=12, justify="right")
-    table.add_column("Estado", width=10)
+    table.add_column("Latency", width=12, justify="right")
+    table.add_column("Status", width=10)
 
     for hop in hops:
         lat = format_latency(hop.get("latency_ms"))
@@ -298,15 +302,15 @@ def create_traceroute_table(hops: List[Dict]) -> Table:
 
 
 def create_ping_summary(stats: Dict) -> Panel:
-    """Panel resumen de ICMP ping."""
+    """ICMP ping summary panel."""
     lines = [
-        f"  [{ARGOS_DIM}]Destino:[/{ARGOS_DIM}]     "
+        f"  [{ARGOS_DIM}]Target:[/{ARGOS_DIM}]      "
         f"[{ARGOS_WHITE}]{stats.get('dst', 'N/A')}[/{ARGOS_WHITE}]",
-        f"  [{ARGOS_DIM}]Enviados:[/{ARGOS_DIM}]    "
+        f"  [{ARGOS_DIM}]Sent:[/{ARGOS_DIM}]        "
         f"[{ARGOS_WHITE}]{stats.get('sent', 0)}[/{ARGOS_WHITE}]",
-        f"  [{ARGOS_DIM}]Recibidos:[/{ARGOS_DIM}]   "
+        f"  [{ARGOS_DIM}]Received:[/{ARGOS_DIM}]    "
         f"[{ARGOS_SUCCESS}]{stats.get('received', 0)}[/{ARGOS_SUCCESS}]",
-        f"  [{ARGOS_DIM}]Perdidos:[/{ARGOS_DIM}]    "
+        f"  [{ARGOS_DIM}]Lost:[/{ARGOS_DIM}]        "
         f"[{ARGOS_ERROR}]{stats.get('lost', 0)} ({stats.get('loss_pct', 0)}%)[/{ARGOS_ERROR}]",
         "",
     ]
@@ -314,9 +318,9 @@ def create_ping_summary(stats: Dict) -> Panel:
     if stats.get("min_ms") is not None:
         lines.extend(
             [
-                f"  [{ARGOS_DIM}]Minimo:[/{ARGOS_DIM}]     {format_latency(stats['min_ms'])}",
-                f"  [{ARGOS_DIM}]Media:[/{ARGOS_DIM}]      {format_latency(stats['avg_ms'])}",
-                f"  [{ARGOS_DIM}]Maximo:[/{ARGOS_DIM}]     {format_latency(stats['max_ms'])}",
+                f"  [{ARGOS_DIM}]Minimum:[/{ARGOS_DIM}]       {format_latency(stats['min_ms'])}",
+                f"  [{ARGOS_DIM}]Average:[/{ARGOS_DIM}]       {format_latency(stats['avg_ms'])}",
+                f"  [{ARGOS_DIM}]Maximum:[/{ARGOS_DIM}]       {format_latency(stats['max_ms'])}",
             ]
         )
 
@@ -325,5 +329,44 @@ def create_ping_summary(stats: Dict) -> Panel:
         title=f"[{ARGOS_PRIMARY_BOLD}]ICMP PING RESULTS[/{ARGOS_PRIMARY_BOLD}]",
         border_style=ARGOS_PRIMARY,
         padding=(1, 2),
-        box=box.SQUARE_DOUBLE_HEADED,
+        box=box.SQUARE_DOUBLE_HEAD,
     )
+
+
+def create_qos_panel(target: str, sent: int, total: int, avg_lat: float, jitter: float, loss_pct: float, final: bool = False, final_res: Dict = None) -> Panel:
+    """Real-time QoS & Jitter display panel."""
+    progress_bar = f"[{ARGOS_PRIMARY}]{'#' * int((sent/total)*20)}[/{ARGOS_PRIMARY}][{ARGOS_MUTED}]{'.' * (20 - int((sent/total)*20))}[/{ARGOS_MUTED}]"
+
+    lines = [
+        f"  [{ARGOS_DIM}]Target:[/{ARGOS_DIM}]      [{ARGOS_WHITE}]{target}[/{ARGOS_WHITE}]",
+        f"  [{ARGOS_DIM}]Progress:[/{ARGOS_DIM}]    {progress_bar} [{ARGOS_WHITE}]{sent}/{total}[/{ARGOS_WHITE}]",
+        "",
+        f"  [{ARGOS_DIM}]Avg Latency:[/{ARGOS_DIM}] {format_latency(avg_lat)}",
+    ]
+    
+    # Jitter Color
+    j_color = ARGOS_SUCCESS if jitter < 15 else (ARGOS_WARN if jitter < 30 else ARGOS_ERROR)
+    lines.append(f"  [{ARGOS_DIM}]Jitter:[/{ARGOS_DIM}]      [{j_color}]{jitter:.1f} ms[/{j_color}]")
+    
+    # Loss Color
+    l_color = ARGOS_SUCCESS if loss_pct == 0 else ARGOS_ERROR
+    lines.append(f"  [{ARGOS_DIM}]Packet Loss:[/{ARGOS_DIM}] [{l_color}]{loss_pct:.1f}%[/{l_color}]")
+
+    if final and final_res:
+        lines.append("")
+        mos = final_res["mos"]
+        rating = final_res["rating"]
+        r_color = ARGOS_SUCCESS_BOLD if mos >= 3.6 else (ARGOS_WARN_BOLD if mos >= 3.0 else ARGOS_ERROR_BOLD)
+        
+        lines.append(f"  [{ARGOS_PRIMARY_BOLD}]>> VoIP Readiness Assessment <<[/{ARGOS_PRIMARY_BOLD}]")
+        lines.append(f"  [{ARGOS_DIM}]MOS Score:[/{ARGOS_DIM}]   [{r_color}]{mos} / 5.0[/{r_color}]")
+        lines.append(f"  [{ARGOS_DIM}]Net Rating:[/{ARGOS_DIM}]  [{r_color}]{rating}[/{r_color}]")
+
+    return Panel(
+        "\n".join(lines),
+        title=f"[{ARGOS_PRIMARY_BOLD}]JITTER & QoS ANALYST[/{ARGOS_PRIMARY_BOLD}]",
+        border_style=ARGOS_PRIMARY,
+        padding=(1, 2),
+        box=box.SQUARE_DOUBLE_HEAD,
+    )
+

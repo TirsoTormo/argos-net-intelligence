@@ -1,23 +1,42 @@
 """
 Argos v1.1.1 - Vendor Manager
-Maneja la resolución de OUI/Fabricantes por MAC de forma concurrente,
-implementando un sistema de caché JSON persistente para máxima eficiencia
-y para respetar el principio de Clean Architecture (Separation of Concerns).
+Handles OUI/Manufacturer resolution by MAC concurrently,
+implementing a persistent JSON cache system for maximum efficiency
+and to respect Clean Architecture principles (Separation of Concerns).
 """
 
 import json
 import os
 import urllib.request
 import ssl
-from typing import List, Dict, Callable, Optional
+from typing import List, Dict, Callable, Optional, Any
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from argos.core.models import DeviceModel
+from argos.core.net_utils import is_private_ip
 
 CACHE_FILE = "vendors_cache.json"
+
+def _resilient_retry(max_retries=3, base_delay=0.5):
+    """Critical Retry Decorator (Exponential Backoff)."""
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            import time
+            retries = 0
+            while retries < max_retries:
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    retries += 1
+                    if retries == max_retries:
+                        return ""
+                    time.sleep(base_delay * (2 ** (retries - 1)))
+        return wrapper
+    return decorator
 
 class VendorManager:
     def __init__(self):
         self.cache: Dict[str, str] = self._load_cache()
-        # Fallback locales para las MACs más comunes de red (para evitar APIs)
+        # Local fallback for most common network MACs (to avoid API calls)
         self.fast_fallback = {
             "00:50:56": "VMware",
             "00:0C:29": "VMware",
@@ -50,22 +69,7 @@ class VendorManager:
         except Exception:
             pass
 
-    def _resilient_retry(max_retries=3, base_delay=0.5):
-        """Decorador de Reintentos Críticos (Exponential Backoff)."""
-        def decorator(func):
-            def wrapper(*args, **kwargs):
-                import time
-                retries = 0
-                while retries < max_retries:
-                    try:
-                        return func(*args, **kwargs)
-                    except Exception as e:
-                        retries += 1
-                        if retries == max_retries:
-                            return ""
-                        time.sleep(base_delay * (2 ** (retries - 1)))
-            return wrapper
-        return decorator
+
 
     @_resilient_retry(max_retries=3, base_delay=0.5)
     def _fetch_from_api(self, prefix: str) -> str:
@@ -101,16 +105,16 @@ class VendorManager:
         return vendor
 
     def resolve_vendors_concurrently(
-        self, devices: List[Dict], max_workers: int = 15, progress_callback: Optional[Callable] = None
+        self, devices: List[DeviceModel], max_workers: int = 15, progress_callback: Optional[Callable] = None
     ):
         """
-        Resuelve los vendors de la lista de dispositivos in-place (mutando la lista).
-        Usa caché JSON y concurrencia HTTP para evitar bloqueos del escáner principal.
+        Resolves vendors for the device list in-place (mutating the list).
+        Uses JSON cache and HTTP concurrency to avoid blocking the main scanner.
         """
-        # Obtenemos MACs únicas que no sepamos ya
+        # Get unique MACs that we don't already know
         macs_to_resolve = set()
         for d in devices:
-            mac = d.get('mac', '')
+            mac = d.mac
             if mac and mac != "N/A":
                 prefix = mac.upper().replace("-", ":").replace(".", ":")[:8]
                 if prefix not in self.cache and prefix not in self.fast_fallback:
@@ -119,15 +123,15 @@ class VendorManager:
         total_api_calls = len(macs_to_resolve)
         completed = 0
 
-        # Primero resolvemos rápido o tiramos contra API en paralelo
+        # First we resolve fast or hit API in parallel
         if total_api_calls > 0:
             if progress_callback:
-                progress_callback("Consultando base de OUI...", 0.0)
+                progress_callback("Consulting OUI database...", 0.0)
 
             needs_save = False
-            with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                futures = {executor.submit(self._resolve_single_mac, mac): mac for mac in macs_to_resolve}
-                
+            executor = ThreadPoolExecutor(max_workers=max_workers)
+            futures = {executor.submit(self._resolve_single_mac, mac): mac for mac in macs_to_resolve}
+            try:
                 for future in as_completed(futures):
                     res = future.result()
                     if res:
@@ -135,7 +139,14 @@ class VendorManager:
                         
                     completed += 1
                     if progress_callback:
-                        progress_callback(f"Resolviendo Fabricantes ({completed}/{total_api_calls})...", completed / max(total_api_calls, 1))
+                        progress_callback(f"Resolving Manufacturers ({completed}/{total_api_calls})...", completed / max(total_api_calls, 1))
+            except KeyboardInterrupt:
+                for f in futures:
+                    f.cancel()
+                executor.shutdown(wait=False)
+                raise
+            else:
+                executor.shutdown(wait=True)
 
             if needs_save:
                 self._save_cache()
@@ -143,16 +154,16 @@ class VendorManager:
              if progress_callback:
                  progress_callback("Fabricantes cargados desde caché.", 1.0)
 
-        # Asignamos vendors a los diccionarios originales
+        # Assign vendors to the original model objects
         for d in devices:
-            mac = d.get('mac', '')
+            mac = d.mac
             if mac and mac != "N/A":
                 prefix = mac.upper().replace("-", ":").replace(".", ":")[:8]
                 if prefix in self.cache:
-                    d['vendor'] = self.cache[prefix]
+                    d.vendor = self.cache[prefix]
                 elif prefix in self.fast_fallback:
-                    d['vendor'] = self.fast_fallback[prefix]
+                    d.vendor = self.fast_fallback[prefix]
                 else:
-                    d['vendor'] = ""
+                    d.vendor = ""
             else:
-                d['vendor'] = ""
+                d.vendor = ""

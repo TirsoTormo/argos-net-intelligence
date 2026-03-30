@@ -1,8 +1,8 @@
 # pylint: disable=no-else-return, too-many-boolean-expressions, wrong-import-order
 """
-NetScanner - Utilidades de Red
-Funciones auxiliares para obtener información de interfaces de red,
-calcular subredes y validar direcciones IP privadas.
+NetScanner - Network Utilities
+Helper functions to obtain network interface information,
+calculate subnets, and validate private IP addresses.
 """
 
 import socket
@@ -13,16 +13,16 @@ from typing import List, Dict
 
 def get_local_interfaces() -> List[Dict]:
     """
-    Obtiene todas las interfaces de red activas del sistema con su información.
+    Obtains all active network interfaces of the system with their information.
 
     Returns:
-        Lista de diccionarios con info de cada interfaz:
-        - name: Nombre de la interfaz
-        - ip: Dirección IPv4
-        - mask: Máscara de subred
-        - mac: Dirección MAC
-        - type: Tipo estimado (Ethernet/Wi-Fi/Loopback/Virtual)
-        - is_up: Si la interfaz está activa
+        List of dictionaries with info for each interface:
+        - name: Interface name
+        - ip: IPv4 address
+        - mask: Subnet mask
+        - mac: MAC address
+        - type: Estimated type (Ethernet/Wi-Fi/Loopback/Virtual)
+        - is_up: Whether the interface is active
     """
     interfaces = []
     stats = psutil.net_if_stats()
@@ -65,7 +65,7 @@ def get_local_interfaces() -> List[Dict]:
 
 
 def _detect_interface_type(name: str, ip: str) -> str:
-    """Detecta el tipo de interfaz basándose en el nombre y la IP."""
+    """Detects the type of interface based on its name and IP."""
     name_lower = name.lower()
 
     if ip == "127.0.0.1":
@@ -82,19 +82,19 @@ def _detect_interface_type(name: str, ip: str) -> str:
     elif any(kw in name_lower for kw in ["vpn", "tun", "tap", "wg"]):
         return "🔒 VPN"
     else:
-        return "🌐 Otro"
+        return "🌐 Other"
 
 
 def get_network_cidr(ip: str, mask: str) -> str:
     """
-    Calcula el CIDR de la subred a partir de IP y máscara.
+    Calculates the CIDR of the subnet from IP and mask.
 
     Args:
-        ip: Dirección IPv4 (ej: '192.168.1.100')
-        mask: Máscara de subred (ej: '255.255.255.0')
+        ip: IPv4 address (e.g., '192.168.1.100')
+        mask: Subnet mask (e.g., '255.255.255.0')
 
     Returns:
-        String con la red en formato CIDR (ej: '192.168.1.0/24')
+        String with the network in CIDR format (e.g., '192.168.1.0/24')
     """
     try:
         network = ipaddress.IPv4Network(f"{ip}/{mask}", strict=False)
@@ -105,14 +105,14 @@ def get_network_cidr(ip: str, mask: str) -> str:
 
 def is_private_ip(ip: str) -> bool:
     """
-    Verifica que una dirección IP sea privada (RFC 1918).
-    Esto garantiza que nunca se sale a Internet.
+    Verifies that an IP address is private (RFC 1918).
+    This ensures that it never goes out to the Internet.
 
     Args:
-        ip: Dirección IPv4
+        ip: IPv4 address
 
     Returns:
-        True si la IP es privada
+        True if the IP is private
     """
     try:
         return ipaddress.IPv4Address(ip).is_private
@@ -122,14 +122,14 @@ def is_private_ip(ip: str) -> bool:
 
 def resolve_hostname(ip: str, timeout: float = 1.0) -> str:
     """
-    Intenta resolver el hostname de una IP mediante DNS inverso y NetBIOS.
+    Attempts to resolve the hostname of an IP using reverse DNS and NetBIOS.
 
     Args:
-        ip: Dirección IPv4
-        timeout: Tiempo máximo de espera en segundos
+        ip: IPv4 address
+        timeout: Maximum wait time in seconds
 
     Returns:
-        Hostname resuelto o 'Desconocido'
+        Resolved hostname or 'Unknown'
     """
     # 1. DNS Standard (mDNS / Local DNS)
     try:
@@ -149,20 +149,20 @@ def resolve_hostname(ip: str, timeout: float = 1.0) -> str:
                 cmd, capture_output=True, text=True, timeout=1.5, 
                 creationflags=subprocess.CREATE_NO_WINDOW
             )
-            # Buscar línea tipo: "   NOMBREEQUIPO   <00>  UNIQUE"
+            # Search for line type: "   DEVICENAME   <00>  UNIQUE"
             match = re.search(r"\s+([A-Za-z0-9\-_]+)\s+<00>\s+UNIQUE", result.stdout)
             if match:
                 return match.group(1).strip()
     except Exception:
         pass
 
-    return "Desconocido"
+    return "Unknown"
 
 
 def get_active_interfaces() -> List[Dict]:
     """
-    Obtiene solo las interfaces activas con IP privada (excluyendo loopback y virtuales).
-    Ideal para seleccionar la interfaz de escaneo.
+    Obtains only active interfaces with a private IP (excluding loopback and virtuals).
+    Ideal for selecting the scanning interface.
     """
     interfaces = get_local_interfaces()
     active = []
@@ -181,14 +181,14 @@ def get_active_interfaces() -> List[Dict]:
 
 def get_gateway_ip(ip: str, mask: str) -> str:
     """
-    Estima la IP del gateway (normalmente .1 de la subred).
+    Estimates the gateway IP (normally .1 of the subnet).
 
     Args:
-        ip: Dirección IPv4 del host
-        mask: Máscara de subred
+        ip: IPv4 address of the host
+        mask: Subnet mask
 
     Returns:
-        IP estimada del gateway
+        Estimated gateway IP
     """
     try:
         network = ipaddress.IPv4Network(f"{ip}/{mask}", strict=False)
@@ -202,14 +202,14 @@ def get_gateway_ip(ip: str, mask: str) -> str:
 
 def get_all_host_ips(ip: str, mask: str) -> List[str]:
     """
-    Genera la lista de todas las IPs de host posibles en la subred.
+    Generates the list of all possible host IPs in the subnet.
 
     Args:
-        ip: Dirección IPv4
-        mask: Máscara de subred
+        ip: IPv4 address
+        mask: Subnet mask
 
     Returns:
-        Lista de IPs como strings
+        List of IPs as strings
     """
     try:
         network = ipaddress.IPv4Network(f"{ip}/{mask}", strict=False)
